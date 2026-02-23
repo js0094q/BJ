@@ -10,7 +10,8 @@
     tcMode: 'sim', // 'sim' or 'casino'
     decksRemainingEst: 3.0, // used in casino mode
     bankrollUnits: 100,
-    maxKelly: 0.25
+    maxKelly: 0.25,
+    aceSideEnabled: false
   };
 
   const LOG_LIMIT = 50;
@@ -23,6 +24,7 @@
     decksSeen: 0,
     decksRemaining: DEFAULTS.decks,
     tc: 0,
+    acesSeen: 0,
 
     // model outputs
     edge: -0.55,
@@ -47,7 +49,8 @@
     tcMode: DEFAULTS.tcMode,
     decksRemainingEst: DEFAULTS.decksRemainingEst,
     bankrollUnits: DEFAULTS.bankrollUnits,
-    maxKelly: DEFAULTS.maxKelly
+    maxKelly: DEFAULTS.maxKelly,
+    aceSideEnabled: DEFAULTS.aceSideEnabled
   };
 
   // Cached DOM refs
@@ -61,6 +64,7 @@
     dealerCards: document.getElementById('dealerCards'),
     decksSeen: document.getElementById('decksSeenVal'),
     decksRemain: document.getElementById('decksRemainVal'),
+    acesSeen: document.getElementById('acesSeenVal'),
     cardsDealt: document.getElementById('cardsDealtVal'),
     overlay: document.getElementById('overlay'),
     noiseBtn: document.getElementById('noiseBtn'),
@@ -85,6 +89,10 @@
     countSysLabel: document.getElementById('countSysLabel'),
     decksLabel: document.getElementById('decksLabel'),
     tcModeLabel: document.getElementById('tcModeLabel'),
+    aceSidePill: document.getElementById('aceSidePill'),
+    aceSideLabel: document.getElementById('aceSideLabel'),
+    aceDeltaPill: document.getElementById('aceDeltaPill'),
+    acesSeenLabel: document.getElementById('acesSeenLabel'),
 
     // settings ui
     settingsBtn: document.getElementById('settingsBtn'),
@@ -98,6 +106,9 @@
     decksSelect: document.getElementById('decksSelect'),
     tcModeSimBtn: document.getElementById('tcModeSimBtn'),
     tcModeCasinoBtn: document.getElementById('tcModeCasinoBtn'),
+    aceSideField: document.getElementById('aceSideField'),
+    aceSideOnBtn: document.getElementById('aceSideOnBtn'),
+    aceSideOffBtn: document.getElementById('aceSideOffBtn'),
     decksRemainField: document.getElementById('decksRemainField'),
     decksRemainRange: document.getElementById('decksRemainRange'),
     decksRemainReadout: document.getElementById('decksRemainReadout'),
@@ -125,7 +136,9 @@
     bandClass: '',
     countSystem: null,
     decks: null,
-    tcMode: null
+    tcMode: null,
+    aceSide: null,
+    acesSeen: null
   };
 
   // Toast timer
@@ -149,6 +162,7 @@
       decksSeen: state.decksSeen,
       decksRemaining: state.decksRemaining,
       tc: state.tc,
+      acesSeen: state.acesSeen,
       band: state.band,
       target: state.target,
       player: copyHand(state.player),
@@ -161,7 +175,8 @@
       tcMode: state.tcMode,
       decksRemainingEst: state.decksRemainingEst,
       bankrollUnits: state.bankrollUnits,
-      maxKelly: state.maxKelly
+      maxKelly: state.maxKelly,
+      aceSideEnabled: state.aceSideEnabled
     };
   }
 
@@ -193,6 +208,7 @@
     state.decksSeen = 0;
     state.decksRemaining = state.decks;
     state.tc = 0;
+    state.acesSeen = 0;
     state.band = 'NEUTRAL';
     state.target = 'table';
     state.player.length = 0;
@@ -222,6 +238,7 @@
     pushUndo();
     state.cardsDealt += 1;
     state.rc += Engine.weightFor(rank, state.countSystem);
+    if (rank === 'A') state.acesSeen += 1;
 
     if (target === 'player') {
       state.player[state.player.length] = rank;
@@ -236,7 +253,17 @@
 
   function computeDerived() {
     const decksOverride = state.tcMode === 'casino' ? state.decksRemainingEst : undefined;
-    const derived = Engine.trueCountState(state.rc, state.cardsDealt, state.decks, decksOverride);
+    const derived = Engine.trueCountState(
+      state.rc,
+      state.cardsDealt,
+      state.decks,
+      decksOverride,
+      {
+        countSystem: state.countSystem,
+        aceSideEnabled: state.aceSideEnabled,
+        acesSeen: state.acesSeen
+      }
+    );
 
     state.decksSeen = derived.decksSeen;
     state.decksRemaining = derived.decksRemaining;
@@ -273,6 +300,7 @@
       const r = randomRank();
       state.cardsDealt += 1;
       state.rc += Engine.weightFor(r, state.countSystem);
+      if (r === 'A') state.acesSeen += 1;
     }
     computeDerived();
     render(true);
@@ -430,6 +458,11 @@
       rendered.decksRemaining = state.decksRemaining;
     }
 
+    if (state.acesSeen !== rendered.acesSeen || force) {
+      if (els.acesSeen) els.acesSeen.textContent = state.acesSeen.toString();
+      rendered.acesSeen = state.acesSeen;
+    }
+
     if (state.cardsDealt !== rendered.cardsDealt || force) {
       els.cardsDealt.textContent = state.cardsDealt.toString();
       rendered.cardsDealt = state.cardsDealt;
@@ -488,6 +521,18 @@
     if (state.tcMode !== rendered.tcMode || force) {
       els.tcModeLabel.textContent = state.tcMode === 'casino' ? 'CASINO' : 'SIM';
       rendered.tcMode = state.tcMode;
+    }
+
+    const aceSideActive = state.countSystem === 'hiopt2' && state.aceSideEnabled;
+    const showAcePills = state.countSystem === 'hiopt2';
+    if (els.aceSidePill) els.aceSidePill.classList.toggle('hidden', !showAcePills);
+    if (els.aceDeltaPill) els.aceDeltaPill.classList.toggle('hidden', !showAcePills);
+    if (showAcePills && (aceSideActive !== rendered.aceSide || force)) {
+      els.aceSideLabel.textContent = aceSideActive ? 'ON' : 'OFF';
+      rendered.aceSide = aceSideActive;
+    }
+    if (showAcePills && (rendered.acesSeen !== state.acesSeen || force)) {
+      els.acesSeenLabel.textContent = state.acesSeen.toString();
     }
 
     perfTick();
@@ -563,12 +608,14 @@
     els.decksSelect.value = String(state.decks);
     els.bankrollInput.value = String(state.bankrollUnits);
     els.kellySelect.value = String(state.maxKelly);
+    setAceSideUI(state.aceSideEnabled);
 
     setTcModeUI(state.tcMode);
     els.decksRemainRange.max = String(Math.max(8, state.decks));
     els.decksRemainRange.value = String(clampNumber(state.decksRemainingEst, 0.25, Number(els.decksRemainRange.max)));
     els.decksRemainReadout.textContent = Number(els.decksRemainRange.value).toFixed(2);
     syncDecksRemainFieldVisibility();
+    syncAceSideVisibility();
   }
 
   function setTcModeUI(mode) {
@@ -579,6 +626,23 @@
   function syncDecksRemainFieldVisibility() {
     const show = state.tcMode === 'casino';
     els.decksRemainField.classList.toggle('hidden', !show);
+  }
+
+  function setAceSideUI(enabled) {
+    if (!els.aceSideOnBtn || !els.aceSideOffBtn) return;
+    els.aceSideOnBtn.classList.toggle('active', !!enabled);
+    els.aceSideOffBtn.classList.toggle('active', !enabled);
+  }
+
+  function syncAceSideVisibility(selectedSystem, mutateState = true) {
+    if (!els.aceSideField) return;
+    const sys = selectedSystem || state.countSystem;
+    const isHiOpt = sys === 'hiopt2';
+    els.aceSideField.classList.toggle('hidden', !isHiOpt);
+    if (!isHiOpt && mutateState) {
+      state.aceSideEnabled = false;
+      setAceSideUI(false);
+    }
   }
 
   function applySettings() {
@@ -596,6 +660,11 @@
     // decks remaining estimate should never exceed decks
     state.decksRemainingEst = clampNumber(Number(els.decksRemainRange.value), 0.25, state.decks);
 
+    const aceSideEnabled = state.countSystem === 'hiopt2' && els.aceSideOnBtn && els.aceSideOnBtn.classList.contains('active');
+    state.aceSideEnabled = aceSideEnabled;
+    setAceSideUI(state.aceSideEnabled);
+    syncAceSideVisibility();
+
     persistPrefs();
     computeDerived();
     render(true);
@@ -612,6 +681,7 @@
     state.decksRemainingEst = DEFAULTS.decksRemainingEst;
     state.bankrollUnits = DEFAULTS.bankrollUnits;
     state.maxKelly = DEFAULTS.maxKelly;
+    state.aceSideEnabled = DEFAULTS.aceSideEnabled;
     persistPrefs();
     computeDerived();
     render(true);
@@ -630,7 +700,8 @@
         tcMode: state.tcMode,
         decksRemainingEst: state.decksRemainingEst,
         bankrollUnits: state.bankrollUnits,
-        maxKelly: state.maxKelly
+        maxKelly: state.maxKelly,
+        aceSideEnabled: state.aceSideEnabled
       }));
     } catch (_) {
       /* ignore */
@@ -653,6 +724,7 @@
       if (typeof saved.decksRemainingEst === 'number' && isFinite(saved.decksRemainingEst)) state.decksRemainingEst = saved.decksRemainingEst;
       if (typeof saved.bankrollUnits === 'number' && isFinite(saved.bankrollUnits)) state.bankrollUnits = Math.max(1, Math.floor(saved.bankrollUnits));
       if (typeof saved.maxKelly === 'number' && isFinite(saved.maxKelly)) state.maxKelly = saved.maxKelly;
+      if (typeof saved.aceSideEnabled === 'boolean') state.aceSideEnabled = saved.aceSideEnabled;
     } catch (_) {
       /* ignore */
     }
@@ -762,6 +834,34 @@
     els.settingsApplyBtn.addEventListener('click', applySettings, { passive: true });
     els.settingsResetBtn.addEventListener('click', resetPrefs, { passive: true });
 
+    if (els.countSystemSelect) {
+      els.countSystemSelect.addEventListener('change', () => {
+        const selected = els.countSystemSelect.value;
+        syncAceSideVisibility(selected, false);
+        setAceSideUI(selected === 'hiopt2' ? state.aceSideEnabled : false);
+      }, { passive: true });
+    }
+
+    if (els.aceSideOnBtn && els.aceSideOffBtn) {
+      els.aceSideOnBtn.addEventListener('click', () => {
+        if (state.countSystem !== 'hiopt2') return;
+        state.aceSideEnabled = true;
+        setAceSideUI(true);
+        persistPrefs();
+        computeDerived();
+        render(true);
+        toast('Ace side ON');
+      }, { passive: true });
+      els.aceSideOffBtn.addEventListener('click', () => {
+        state.aceSideEnabled = false;
+        setAceSideUI(false);
+        persistPrefs();
+        computeDerived();
+        render(true);
+        toast('Ace side OFF');
+      }, { passive: true });
+    }
+
     els.tcModeSimBtn.addEventListener('click', () => {
       state.tcMode = 'sim';
       persistPrefs();
@@ -799,6 +899,7 @@
   // Init
   bindControls();
   loadPersisted();
+  syncAceSideVisibility();
   computeDerived();
   render(true);
 

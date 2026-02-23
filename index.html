@@ -40,6 +40,8 @@
           <span class="mini-pill"><span class="mini-key">Count</span> <span id="countSysLabel" class="mono">Hi-Lo</span></span>
           <span class="mini-pill"><span class="mini-key">Decks</span> <span id="decksLabel" class="mono">6</span></span>
           <span class="mini-pill"><span class="mini-key">Mode</span> <span id="tcModeLabel" class="mono">SIM</span></span>
+          <span class="mini-pill mini-ace hidden" id="aceSidePill"><span class="mini-key">Ace side</span> <span id="aceSideLabel" class="mono">OFF</span></span>
+          <span class="mini-pill mini-ace hidden" id="aceDeltaPill"><span class="mini-key">A seen</span> <span id="acesSeenLabel" class="mono">0</span></span>
         </div>
       </div>
 
@@ -79,6 +81,10 @@
       <div class="meta panel">
         <div class="sub-label">Decks Remaining</div>
         <div id="decksRemainVal" class="mono">—</div>
+      </div>
+      <div class="meta panel">
+        <div class="sub-label">Aces Seen (side)</div>
+        <div id="acesSeenVal" class="mono">0</div>
       </div>
     </section>
 
@@ -142,7 +148,8 @@
             <ul class="ref-list">
               <li>SIM mode: TC uses cards dealt (training)</li>
               <li>CASINO mode: TC uses your tray estimate (decks remaining)</li>
-              <li>Counts: Hi-Lo, Wong Halves, Hi-Opt II (Ace-neutral)</li>
+              <li>Counts: Hi-Lo, Wong Halves, Hi-Opt II</li>
+              <li>Hi-Opt II: enable Ace side count for betting accuracy</li>
             </ul>
           </div>
           <div>
@@ -194,6 +201,15 @@
               <button id="tcModeSimBtn" type="button" class="seg-btn active" data-mode="sim">SIM (cards dealt)</button>
               <button id="tcModeCasinoBtn" type="button" class="seg-btn" data-mode="casino">CASINO (tray est.)</button>
             </div>
+          </label>
+
+          <label class="field field-wide" id="aceSideField">
+            <span class="field-label">Ace side count (Hi-Opt II)</span>
+            <div class="seg">
+              <button id="aceSideOnBtn" type="button" class="seg-btn" data-mode="on">On</button>
+              <button id="aceSideOffBtn" type="button" class="seg-btn active" data-mode="off">Off</button>
+            </div>
+            <div class="field-hint">Tracks Aces separately and corrects TC/bet for Hi-Opt II. Aces add automatically when you log them.</div>
           </label>
 
           <label class="field field-wide" id="decksRemainField">

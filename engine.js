@@ -76,7 +76,7 @@
   // Supports two modes:
   // 1) Computed remaining decks from cards dealt (sim mode)
   // 2) User-estimated decks remaining override (casino mode)
-  function trueCountState(rc, cardsDealt, decks = RULES.decks, decksRemainingOverride) {
+  function trueCountState(rc, cardsDealt, decks = RULES.decks, decksRemainingOverride, opts = {}) {
     const decksSeenFromCards = cardsDealt / 52;
     const computedRemaining = Math.max(MIN_DECK_FRACTION, decks - decksSeenFromCards);
 
@@ -85,8 +85,25 @@
       : computedRemaining;
 
     const decksSeen = decks - remaining;
-    const tc = rc / remaining;
-    return { tc, decksSeen, decksRemaining: remaining, band: bandFromTC(tc) };
+    const countSystem = opts.countSystem || 'hilo';
+
+    // Ace side count (Hi-Opt II only). We treat Aces as neutral in the main RC
+    // then apply a correction based on surplus/deficit of Aces seen vs expected.
+    const expectedAcesSeen = (cardsDealt * 4) / 52; // 4 Aces per deck
+    const acesSeen = Math.max(0, Number(opts.acesSeen) || 0);
+    const aceDelta = (countSystem === 'hiopt2' && opts.aceSideEnabled) ? (expectedAcesSeen - acesSeen) : 0;
+
+    const rcEffective = rc + aceDelta;
+    const tc = rcEffective / remaining;
+    return {
+      tc,
+      decksSeen,
+      decksRemaining: remaining,
+      band: bandFromTC(tc),
+      aceDelta,
+      rcEffective,
+      expectedAcesSeen
+    };
   }
 
   // --- Edge model ---
