@@ -47,6 +47,7 @@
     hardcoreBtn: document.getElementById('hardcoreBtn'),
     perfBtn: document.getElementById('perfBtn'),
     overlayBtn: document.getElementById('overlayBtn'),
+    nextHandBtn: document.getElementById('nextHandBtn'),
     resetBtn: document.getElementById('resetBtn'),
     edgeToggle: document.getElementById('edgeToggle'),
     btnPlayer: document.getElementById('btnPlayer'),
@@ -150,6 +151,15 @@
     state.showEdge = true;
     render();
     toast('Reset');
+  }
+
+  function nextHand() {
+    pushUndo();
+    state.player.length = 0;
+    state.dealer.length = 0;
+    state.target = 'player';
+    render(true);
+    toast('Next hand');
   }
 
   // Counting helpers delegated to engine
@@ -486,6 +496,11 @@
       reset();
       return;
     }
+    if (key === 'Enter') {
+      e.preventDefault();
+      nextHand();
+      return;
+    }
     if (key === 'o' || key === 'O') {
       e.preventDefault();
       toggleOverlay();
@@ -539,6 +554,7 @@
     els.hardcoreBtn.addEventListener('click', toggleHardcore, { passive: true });
     els.perfBtn.addEventListener('click', togglePerf, { passive: true });
     els.overlayBtn.addEventListener('click', toggleOverlay, { passive: true });
+    els.nextHandBtn.addEventListener('click', nextHand, { passive: true });
     els.resetBtn.addEventListener('click', reset, { passive: true });
     els.edgeToggle.addEventListener('click', toggleEdge, { passive: true });
     els.btnPlayer.addEventListener('click', () => setTarget('player'), { passive: true });
