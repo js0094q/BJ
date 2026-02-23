@@ -57,7 +57,8 @@
     perfFrames: document.getElementById('perfFrames'),
     edge: document.getElementById('edgeVal'),
     bet: document.getElementById('betVal'),
-    guide: document.getElementById('guideLine')
+    guide: document.getElementById('guideLine'),
+    toast: document.getElementById('toast')
   };
 
   // Render cache to avoid redundant writes (render_only_on_state_change)
@@ -79,6 +80,9 @@
     dealerLen: 0,
     bandClass: ''
   };
+
+  // Flash message
+  let toastTimer = 0;
 
   // Perf HUD state
   let perfActive = false;
@@ -128,6 +132,7 @@
     state.hardcore = prev.hardcore;
     state.showEdge = prev.showEdge;
     render();
+    toast('Undo');
   }
 
   function reset() {
@@ -144,6 +149,7 @@
     state.hardcore = false;
     state.showEdge = true;
     render();
+    toast('Reset');
   }
 
   // Counting helpers delegated to engine
@@ -160,6 +166,7 @@
     }
     computeDerived();
     render(true);
+    toast(`${target.toUpperCase()}: +${rank === 'A' ? 'A' : rank}`);
   }
 
   function computeDerived() {
@@ -213,6 +220,7 @@
     pushUndo();
     state.target = next;
     render(true);
+    toast(`Target → ${next.toUpperCase()}`);
   }
 
   // Hardcore toggle
@@ -221,6 +229,7 @@
     state.hardcore = !state.hardcore;
     persist();
     render(true);
+    toast(state.hardcore ? 'Hardcore ON' : 'Hardcore OFF');
   }
 
   // Overlay toggle
@@ -229,6 +238,7 @@
     state.overlay = !state.overlay;
     persist();
     render(true);
+    toast(state.overlay ? 'Overlay ON' : 'Overlay OFF');
   }
 
   function toggleEdge() {
@@ -236,6 +246,7 @@
     state.showEdge = !state.showEdge;
     persist();
     render(true);
+    toast(state.showEdge ? 'Edge/Bet ON' : 'Edge/Bet OFF');
   }
 
   function persist() {
@@ -293,7 +304,48 @@
 
   function guideLineText(act) {
     if (act === '—') return 'Waiting for cards…';
-    return `${handDescriptor()} → ${act} (6D H17 DAS basic strategy)`;
+    const idx = indexDeviationNote();
+    return `${handDescriptor()} → ${act} (6D H17 DAS${idx ? ` • Dev: ${idx}` : ''})`;
+  }
+
+  // Simple index deviations for 6D H17 as examples
+  function indexDeviationNote() {
+    // needs dealer up and player cards
+    if (!state.player.length || !state.dealer.length) return '';
+    const dealerUp = state.dealer[0];
+    const tc = state.tc;
+    const totalVal = Engine.total(state.player);
+    const soft = Engine.isSoft(state.player);
+    const canSplit = state.player.length === 2 && Engine.total([state.player[0]]) === Engine.total([state.player[1]]);
+
+    // Insurance
+    if (dealerUp === 'A' && tc >= 3) return 'Take insurance (TC ≥ +3)';
+
+    // 16 v 10 stand at TC >= 0
+    if (!soft && totalVal === 16 && dealerUp === 10 && tc >= 0) return 'Stand 16 vs 10 (TC ≥ 0)';
+
+    // 15 v 10 stand at TC >= 4
+    if (!soft && totalVal === 15 && dealerUp === 10 && tc >= 4) return 'Stand 15 vs 10 (TC ≥ +4)';
+
+    // 12 v 3 stand at TC >= 2
+    if (!soft && totalVal === 12 && dealerUp === 3 && tc >= 2) return 'Stand 12 vs 3 (TC ≥ +2)';
+
+    // 12 v 2 stand at TC >= 3
+    if (!soft && totalVal === 12 && dealerUp === 2 && tc >= 3) return 'Stand 12 vs 2 (TC ≥ +3)';
+
+    // 10 v T double at TC >= 4
+    if (!soft && totalVal === 10 && dealerUp === 10 && state.player.length === 2 && tc >= 4) return 'Double 10 vs T (TC ≥ +4)';
+
+    // 9 v 2 double at TC >= 1
+    if (!soft && totalVal === 9 && dealerUp === 2 && state.player.length === 2 && tc >= 1) return 'Double 9 vs 2 (TC ≥ +1)';
+
+    // 9 v 7 double at TC >= 3
+    if (!soft && totalVal === 9 && dealerUp === 7 && state.player.length === 2 && tc >= 3) return 'Double 9 vs 7 (TC ≥ +3)';
+
+    // Split 10s vs 5/6 at TC >= 5 (aggressive example)
+    if (canSplit && state.player[0] === 10 && (dealerUp === 5 || dealerUp === 6) && tc >= 5) return 'Split 10s vs 5/6 (TC ≥ +5)';
+
+    return '';
   }
 
   // Render minimal: only touch DOM when value changed
@@ -507,6 +559,7 @@
     els.perfHud.classList.toggle('hidden', !perfActive);
     perfFrames = 0;
     perfLast = performance.now();
+    toast(perfActive ? 'Perf HUD ON' : 'Perf HUD OFF');
   }
 
   function perfTick() {
@@ -521,6 +574,16 @@
       perfFrames = 0;
       perfLast = now;
     }
+  }
+
+  function toast(msg) {
+    if (!els.toast) return;
+    clearTimeout(toastTimer);
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    toastTimer = setTimeout(() => {
+      els.toast.classList.remove('show');
+    }, 900);
   }
 
   // Init
