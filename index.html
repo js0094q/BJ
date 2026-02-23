@@ -8,12 +8,17 @@
 </head>
 <body>
   <main id="app" class="app">
+    <div class="header">
+      <h1>BLACKJ Trainer</h1>
+      <div class="badge">Ultra-Low-Latency</div>
+    </div>
+
     <section class="topline">
-      <div class="count-block" data-role="rc">
+      <div class="panel count-block" data-role="rc">
         <div class="label">RC</div>
         <div id="rcVal" class="value">0</div>
       </div>
-      <div class="count-block" data-role="tc">
+      <div class="panel count-block" data-role="tc">
         <div class="label">TC</div>
         <div class="tc-wrap">
           <div id="tcVal" class="value tc">0</div>
@@ -22,7 +27,7 @@
           <button id="edgeToggle" class="icon-btn" type="button" aria-label="Toggle edge/bet display">◎</button>
         </div>
       </div>
-      <div class="action-block">
+      <div class="panel action-block">
         <div class="label">Action</div>
         <div id="actionVal" class="action-text">—</div>
         <div class="bet-line">Bet: <span id="betVal" class="bet-pill">—</span></div>
@@ -30,23 +35,23 @@
     </section>
 
     <section id="grid" class="grid">
-      <div class="card-target">
+      <div class="card-target panel">
         <div class="sub-label">Target</div>
         <div id="targetVal" class="pill">TABLE</div>
       </div>
-      <div class="card-lists">
+      <div class="card-lists panel">
         <div class="sub-label">Player</div>
         <div id="playerCards" class="cards"></div>
       </div>
-      <div class="card-lists">
+      <div class="card-lists panel">
         <div class="sub-label">Dealer</div>
         <div id="dealerCards" class="cards"></div>
       </div>
-      <div class="meta">
+      <div class="meta panel">
         <div class="sub-label">Decks Seen</div>
         <div id="decksSeenVal" class="mono">0.00</div>
       </div>
-      <div class="meta">
+      <div class="meta panel">
         <div class="sub-label">Cards Dealt</div>
         <div id="cardsDealtVal" class="mono">0</div>
       </div>
