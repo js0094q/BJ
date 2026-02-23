@@ -319,7 +319,7 @@
         POSITIVE: 'band-positive',
         HIGH: 'band-high'
       };
-      els.band.classList.remove(rendered.bandClass);
+      if (rendered.bandClass) els.band.classList.remove(rendered.bandClass);
       const cls = classMap[state.band];
       if (cls) els.band.classList.add(cls);
       rendered.bandClass = cls;
@@ -416,7 +416,8 @@
       table: els.btnTable
     };
     Object.keys(map).forEach(key => {
-      map[key].classList.toggle('active', state.target === key);
+      const btn = map[key];
+      if (btn) btn.classList.toggle('active', state.target === key);
     });
   }
 
