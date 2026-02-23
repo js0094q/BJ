@@ -53,7 +53,8 @@
     perfFps: document.getElementById('perfFps'),
     perfFrames: document.getElementById('perfFrames'),
     edge: document.getElementById('edgeVal'),
-    bet: document.getElementById('betVal')
+    bet: document.getElementById('betVal'),
+    guide: document.getElementById('guideLine')
   };
 
   // Render cache to avoid redundant writes (render_only_on_state_change)
@@ -271,6 +272,27 @@
     return Engine.recommendBasic(state.player, dealerUp);
   }
 
+  function handDescriptor() {
+    if (!state.player.length || !state.dealer.length) return 'Waiting for cards…';
+    const dealerUp = state.dealer[0];
+    const dealerText = `Dealer ${dealerUp === 'A' ? 'A' : dealerUp}`;
+    if (state.player.length === 2 && Engine.isSoft(state.player) && Engine.total(state.player) === 21) {
+      return `Blackjack vs ${dealerText}`;
+    }
+    const canSplit = state.player.length === 2 && Engine.total([state.player[0]]) === Engine.total([state.player[1]]);
+    if (canSplit) {
+      return `Pair ${state.player[0]}s vs ${dealerText}`;
+    }
+    const soft = Engine.isSoft(state.player);
+    const totalVal = Engine.total(state.player);
+    return `${soft ? 'Soft' : 'Hard'} ${totalVal} vs ${dealerText}`;
+  }
+
+  function guideLineText(act) {
+    if (act === '—') return 'Waiting for cards…';
+    return `${handDescriptor()} → ${act} (6D H17 DAS basic strategy)`;
+  }
+
   // Render minimal: only touch DOM when value changed
   function render(force) {
     if (state.rc !== rendered.rc || force) {
@@ -304,6 +326,10 @@
     if (act !== rendered.action || force) {
       els.action.textContent = act;
       rendered.action = act;
+    }
+    if (force || rendered.guide !== act) {
+      els.guide.textContent = guideLineText(act);
+      rendered.guide = act;
     }
 
     if (state.target !== rendered.target || force) {

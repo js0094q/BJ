@@ -170,6 +170,16 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
+
+.guide {
+  margin-top: 14px;
+}
+.guide-line {
+  font-size: 15px;
+  color: #e7f0ff;
+  letter-spacing: 0.01em;
+}
+
 .card-target, .card-lists, .meta {
   background: var(--glass);
   border: 1px solid var(--border);
