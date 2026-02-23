@@ -4,7 +4,10 @@
   // Core constants
   const DECKS = 6;
   const LOG_LIMIT = 50;
-  const MIN_DECK_FRACTION = 0.25; // avoid divide-by-zero when shoe nearly exhausted
+  const BANKROLL_UNITS = 100; // abstract bankroll units for bet sizing
+  const MAX_KELLY = 0.25;      // quarter Kelly to keep swings sane
+
+  const Engine = window.BJEngine;
 
   // State containers (mutable by design, explicit mutation only)
   const state = {
@@ -12,12 +15,16 @@
     cardsDealt: 0,
     decksSeen: 0,
     tc: 0,
+    edge: -0.5,
+    betUnits: 0,
+    betFrac: 0,
     band: 'NEUTRAL',
     target: 'table',
     player: [],
     dealer: [],
     overlay: false,
     hardcore: false,
+    showEdge: true,
     log: []
   };
 
@@ -41,9 +48,12 @@
     perfBtn: document.getElementById('perfBtn'),
     overlayBtn: document.getElementById('overlayBtn'),
     resetBtn: document.getElementById('resetBtn'),
+    edgeToggle: document.getElementById('edgeToggle'),
     perfHud: document.getElementById('perfHud'),
     perfFps: document.getElementById('perfFps'),
-    perfFrames: document.getElementById('perfFrames')
+    perfFrames: document.getElementById('perfFrames'),
+    edge: document.getElementById('edgeVal'),
+    bet: document.getElementById('betVal')
   };
 
   // Render cache to avoid redundant writes (render_only_on_state_change)
@@ -55,8 +65,12 @@
     target: null,
     decksSeen: null,
     cardsDealt: null,
+    edge: null,
+    betUnits: null,
+    betFrac: null,
     hardcore: null,
     overlay: null,
+    showEdge: null,
     playerLen: 0,
     dealerLen: 0,
     bandClass: ''
@@ -85,7 +99,8 @@
       player: copyHand(state.player),
       dealer: copyHand(state.dealer),
       overlay: state.overlay,
-      hardcore: state.hardcore
+      hardcore: state.hardcore,
+      showEdge: state.showEdge
     };
   }
 
@@ -107,6 +122,7 @@
     state.dealer = copyHand(prev.dealer);
     state.overlay = prev.overlay;
     state.hardcore = prev.hardcore;
+    state.showEdge = prev.showEdge;
     render();
   }
 
@@ -122,37 +138,17 @@
     state.dealer.length = 0;
     state.overlay = false;
     state.hardcore = false;
+    state.showEdge = true;
     render();
   }
 
-  // Counting helpers
-  function hiLoWeight(rank) {
-    // rank: number 2-10 or 'A'
-    if (rank === 'A' || rank === 10) return -1;
-    if (rank >= 2 && rank <= 6) return 1;
-    return 0;
-  }
-
-  function normalizeRank(key) {
-    const k = key.toUpperCase();
-    if (k === 'A') return 'A';
-    if (k === 'T' || k === 'J' || k === 'Q' || k === 'K' || k === '0') return 10;
-    const n = Number(k);
-    if (n >= 2 && n <= 9) return n;
-    return null;
-  }
-
-  function bandFromTC(tc) {
-    if (tc <= -2) return 'NEGATIVE';
-    if (tc < 1) return 'NEUTRAL';
-    if (tc < 3) return 'POSITIVE';
-    return 'HIGH';
-  }
+  // Counting helpers delegated to engine
+  const normalizeRank = Engine.normalizeRank;
 
   function applyCard(target, rank) {
     pushUndo();
     state.cardsDealt += 1;
-    state.rc += hiLoWeight(rank);
+    state.rc += Engine.weightHiLo(rank);
     if (target === 'player') {
       state.player[state.player.length] = rank;
     } else if (target === 'dealer') {
@@ -163,10 +159,14 @@
   }
 
   function computeDerived() {
-    state.decksSeen = state.cardsDealt / 52;
-    const decksRemaining = Math.max(MIN_DECK_FRACTION, DECKS - state.decksSeen);
-    state.tc = state.rc / decksRemaining;
-    const nextBand = bandFromTC(state.tc);
+    const derived = Engine.trueCountState(state.rc, state.cardsDealt, DECKS);
+    state.decksSeen = derived.decksSeen;
+    state.tc = derived.tc;
+    state.edge = Engine.edgeLogistic(derived.tc, derived.decksSeen, DECKS);
+    const bet = Engine.betUnits(state.edge, BANKROLL_UNITS, 1, MAX_KELLY);
+    state.betUnits = bet.units;
+    state.betFrac = bet.frac;
+    const nextBand = derived.band;
     if (nextBand !== state.band) triggerTCFlash();
     state.band = nextBand;
   }
@@ -190,7 +190,7 @@
     for (let i = 0; i < draws; i++) {
       const r = randomRank();
       state.cardsDealt += 1;
-      state.rc += hiLoWeight(r);
+      state.rc += Engine.weightHiLo(r);
     }
     computeDerived();
     render(true);
@@ -227,11 +227,19 @@
     render(true);
   }
 
+  function toggleEdge() {
+    pushUndo();
+    state.showEdge = !state.showEdge;
+    persist();
+    render(true);
+  }
+
   function persist() {
     try {
       sessionStorage.setItem('bj_state_prefs', JSON.stringify({
         hardcore: state.hardcore,
-        overlay: state.overlay
+        overlay: state.overlay,
+        showEdge: state.showEdge
       }));
     } catch (_) {
       /* ignore */
@@ -245,112 +253,22 @@
       const saved = JSON.parse(raw);
       if (typeof saved.hardcore === 'boolean') state.hardcore = saved.hardcore;
       if (typeof saved.overlay === 'boolean') state.overlay = saved.overlay;
+      if (typeof saved.showEdge === 'boolean') {
+        state.showEdge = saved.showEdge;
+      } else {
+        state.showEdge = true; // default on
+      }
     } catch (_) {
       /* ignore */
     }
   }
 
-  // Action recommendation (lean basic strategy for 6D, H17, DAS, no surrender)
+  // Action recommendation (delegated to engine basic strategy)
   function recommendedAction() {
     if (!state.player.length || !state.dealer.length) return '—';
     const dealerUp = state.dealer[0];
     if (!dealerUp) return '—';
-
-    // Helper values
-    const canDouble = state.player.length === 2;
-    const canSplit = state.player.length === 2 && valueEq(state.player[0], state.player[1]);
-
-    // Pair handling
-    if (canSplit) {
-      const p = pairDecision(state.player[0], dealerUp);
-      if (p) return p;
-    }
-
-    // Soft vs hard
-    if (isSoft(state.player)) {
-      return softDecision(state.player, dealerUp, canDouble);
-    }
-    return hardDecision(total(state.player), dealerUp, canDouble);
-  }
-
-  function cardVal(rank) {
-    if (rank === 'A') return 11;
-    return rank;
-  }
-
-  function valueEq(a, b) {
-    return (a === 'A' && b === 'A') || (a !== 'A' && b !== 'A' && cardVal(a) === cardVal(b));
-  }
-
-  function total(hand) {
-    let sum = 0;
-    let aces = 0;
-    for (let i = 0; i < hand.length; i++) {
-      const v = hand[i] === 'A' ? 11 : hand[i];
-      sum += v;
-      if (hand[i] === 'A') aces += 1;
-    }
-    while (sum > 21 && aces) {
-      sum -= 10;
-      aces -= 1;
-    }
-    return sum;
-  }
-
-  function isSoft(hand) {
-    let sum = 0;
-    let aces = 0;
-    for (let i = 0; i < hand.length; i++) {
-      const v = hand[i] === 'A' ? 11 : hand[i];
-      sum += v;
-      if (hand[i] === 'A') aces += 1;
-    }
-    return aces > 0 && sum <= 21;
-  }
-
-  function pairDecision(rank, dealerUp) {
-    // Returns 'SPLIT' or null
-    const d = dealerUp === 'A' ? 11 : dealerUp;
-    const r = rank === 'A' ? 11 : rank;
-
-    if (r === 11) return 'SPLIT'; // A,A always
-    if (r === 8) return 'SPLIT';
-    if (r === 10) return null; // never split tens
-    if (r === 9) return (d === 7 || d === 10 || d === 11) ? 'STAND' : 'SPLIT';
-    if (r === 7) return d <= 7 ? 'SPLIT' : 'HIT';
-    if (r === 6) return d <= 6 ? 'SPLIT' : 'HIT';
-    if (r === 5) return null; // treat as hard 10
-    if (r === 4) return d === 5 || d === 6 ? 'SPLIT' : 'HIT';
-    if (r === 3 || r === 2) return d <= 7 ? 'SPLIT' : 'HIT';
-    return null;
-  }
-
-  function softDecision(hand, dealerUp, canDouble) {
-    const d = dealerUp === 'A' ? 11 : dealerUp;
-    const totalVal = total(hand);
-
-    if (totalVal >= 20) return 'STAND';
-    if (totalVal === 19) return d === 6 && canDouble ? 'DOUBLE' : 'STAND';
-    if (totalVal === 18) {
-      if (d >= 9 || d === 11) return 'HIT';
-      if (d === 2 || d === 7 || d === 8) return 'STAND';
-      return canDouble ? 'DOUBLE' : 'STAND';
-    }
-    if (totalVal === 17) return d >= 3 && d <= 6 && canDouble ? 'DOUBLE' : 'HIT';
-    if (totalVal === 16 || totalVal === 15) return d >= 4 && d <= 6 && canDouble ? 'DOUBLE' : 'HIT';
-    if (totalVal === 14 || totalVal === 13) return d >= 5 && d <= 6 && canDouble ? 'DOUBLE' : 'HIT';
-    return 'HIT';
-  }
-
-  function hardDecision(totalVal, dealerUp, canDouble) {
-    const d = dealerUp === 'A' ? 11 : dealerUp;
-    if (totalVal >= 17) return 'STAND';
-    if (totalVal >= 13 && totalVal <= 16) return d <= 6 ? 'STAND' : 'HIT';
-    if (totalVal === 12) return d >= 4 && d <= 6 ? 'STAND' : 'HIT';
-    if (totalVal === 11) return canDouble ? 'DOUBLE' : 'HIT';
-    if (totalVal === 10) return d <= 9 && canDouble ? 'DOUBLE' : 'HIT';
-    if (totalVal === 9) return d >= 3 && d <= 6 && canDouble ? 'DOUBLE' : 'HIT';
-    return 'HIT';
+    return Engine.recommendBasic(state.player, dealerUp);
   }
 
   // Render minimal: only touch DOM when value changed
@@ -403,6 +321,22 @@
       rendered.cardsDealt = state.cardsDealt;
     }
 
+    if (state.edge !== rendered.edge || force) {
+      els.edge.textContent = `${state.edge.toFixed(2)}%`;
+      rendered.edge = state.edge;
+    }
+
+    if (state.betUnits !== rendered.betUnits || force) {
+      const units = state.betUnits;
+      els.bet.textContent = units > 0 ? `${units}u` : '—';
+      rendered.betUnits = units;
+    }
+
+    if (state.betFrac !== rendered.betFrac || force) {
+      els.bet.setAttribute('data-frac', state.betFrac.toFixed(3));
+      rendered.betFrac = state.betFrac;
+    }
+
     // deviation highlight based on band
     els.action.classList.toggle('deviation-hot', state.band === 'HIGH');
     els.action.classList.toggle('deviation-cool', state.band === 'NEGATIVE');
@@ -415,6 +349,11 @@
     if (state.overlay !== rendered.overlay || force) {
       els.overlay.classList.toggle('hidden', !state.overlay);
       rendered.overlay = state.overlay;
+    }
+
+    if (state.showEdge !== rendered.showEdge || force) {
+      document.body.classList.toggle('edge-hidden', !state.showEdge);
+      rendered.showEdge = state.showEdge;
     }
 
     if (state.player.length !== rendered.playerLen || force) {
@@ -456,6 +395,11 @@
     if (key === 'o' || key === 'O') {
       e.preventDefault();
       toggleOverlay();
+      return;
+    }
+    if (key === 'e' || key === 'E') {
+      e.preventDefault();
+      toggleEdge();
       return;
     }
     if (key === 'f' || key === 'F') {
@@ -502,6 +446,7 @@
     els.perfBtn.addEventListener('click', togglePerf, { passive: true });
     els.overlayBtn.addEventListener('click', toggleOverlay, { passive: true });
     els.resetBtn.addEventListener('click', reset, { passive: true });
+    els.edgeToggle.addEventListener('click', toggleEdge, { passive: true });
     document.addEventListener('keydown', handleKey, false);
   }
 

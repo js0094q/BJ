@@ -18,11 +18,14 @@
         <div class="tc-wrap">
           <div id="tcVal" class="value tc">0</div>
           <div id="bandBadge" class="band">NEUTRAL</div>
+          <div id="edgeVal" class="edge-pill">-0.50%</div>
+          <button id="edgeToggle" class="icon-btn" type="button" aria-label="Toggle edge/bet display">◎</button>
         </div>
       </div>
       <div class="action-block">
         <div class="label">Action</div>
         <div id="actionVal" class="action-text">—</div>
+        <div class="bet-line">Bet: <span id="betVal" class="bet-pill">—</span></div>
       </div>
     </section>
 
@@ -60,7 +63,7 @@
     <section id="hints" class="hints">
       <div class="hint"><span class="mono">2-9, T/J/Q/K, A</span> add card to active target</div>
       <div class="hint"><span class="mono">P</span> player, <span class="mono">D</span> dealer, <span class="mono">B</span> table</div>
-      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">X</span> reset • <span class="mono">O</span> overlay</div>
+      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">X</span> reset • <span class="mono">O</span> overlay • <span class="mono">E</span> edge/bet</div>
     </section>
 
     <section id="overlay" class="overlay hidden">
@@ -73,7 +76,8 @@
               <li>Digits / T J Q K / A → add to target</li>
               <li>P / D / B → switch target</li>
               <li>N noise · M hardcore · O overlay</li>
-              <li>Backspace undo · X reset · F perf HUD</li>
+              <li>Backspace undo · X reset · F perf HUD · E edge/bet</li>
+              <li>Edge/Bet auto: logistic EV + quarter Kelly</li>
             </ul>
           </div>
           <div>
@@ -103,6 +107,7 @@
     <div class="perf-line" id="perfFps">fps —</div>
     <div class="perf-line" id="perfFrames">frames —</div>
   </div>
+  <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
