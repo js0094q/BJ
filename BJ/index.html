@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLACKJ Trainer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app" class="app">
+    <section class="topline">
+      <div class="count-block" data-role="rc">
+        <div class="label">RC</div>
+        <div id="rcVal" class="value">0</div>
+      </div>
+      <div class="count-block" data-role="tc">
+        <div class="label">TC</div>
+        <div class="tc-wrap">
+          <div id="tcVal" class="value tc">0</div>
+          <div id="bandBadge" class="band">NEUTRAL</div>
+        </div>
+      </div>
+      <div class="action-block">
+        <div class="label">Action</div>
+        <div id="actionVal" class="action-text">—</div>
+      </div>
+    </section>
+
+    <section id="grid" class="grid">
+      <div class="card-target">
+        <div class="sub-label">Target</div>
+        <div id="targetVal" class="pill">TABLE</div>
+      </div>
+      <div class="card-lists">
+        <div class="sub-label">Player</div>
+        <div id="playerCards" class="cards"></div>
+      </div>
+      <div class="card-lists">
+        <div class="sub-label">Dealer</div>
+        <div id="dealerCards" class="cards"></div>
+      </div>
+      <div class="meta">
+        <div class="sub-label">Decks Seen</div>
+        <div id="decksSeenVal" class="mono">0.00</div>
+      </div>
+      <div class="meta">
+        <div class="sub-label">Cards Dealt</div>
+        <div id="cardsDealtVal" class="mono">0</div>
+      </div>
+    </section>
+
+    <section id="controls" class="controls">
+      <button id="noiseBtn" type="button" class="control">Noise (N)</button>
+      <button id="hardcoreBtn" type="button" class="control">Hardcore (M)</button>
+      <button id="perfBtn" type="button" class="control">Perf (F)</button>
+      <button id="overlayBtn" type="button" class="control">Overlay (O)</button>
+      <button id="resetBtn" type="button" class="control">Reset (X)</button>
+    </section>
+
+    <section id="hints" class="hints">
+      <div class="hint"><span class="mono">2-9, T/J/Q/K, A</span> add card to active target</div>
+      <div class="hint"><span class="mono">P</span> player, <span class="mono">D</span> dealer, <span class="mono">B</span> table</div>
+      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">X</span> reset • <span class="mono">O</span> overlay</div>
+    </section>
+
+    <section id="overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h2>Quick Ref</h2>
+        <div class="ref-grid">
+          <div>
+            <div class="ref-title">Controls</div>
+            <ul class="ref-list">
+              <li>Digits / T J Q K / A → add to target</li>
+              <li>P / D / B → switch target</li>
+              <li>N noise · M hardcore · O overlay</li>
+              <li>Backspace undo · X reset · F perf HUD</li>
+            </ul>
+          </div>
+          <div>
+            <div class="ref-title">Live 6D Rules</div>
+            <ul class="ref-list">
+              <li>3:2 blackjack · dealer hits soft 17</li>
+              <li>Double after split; one split; split Aces 1 card</li>
+              <li>Insurance allowed at dealer Ace</li>
+              <li>Pairs side bet pays 11:1 on any pair</li>
+              <li>Rummy side bet pays 9:1 on suited/ranked/straight 3-card combo (2 player + dealer up)</li>
+            </ul>
+          </div>
+          <div>
+            <div class="ref-title">Practice Drills</div>
+            <ul class="ref-list">
+              <li>Single-card: flip & call +1/0/–1 instantly</li>
+              <li>Running count: burn a deck, finish at 0</li>
+              <li>Deck est.: eyeball discard tray → decks remaining</li>
+              <li>Noise: train with distractions (TV/audio)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="perfHud" class="perf hidden">
+    <div class="perf-line" id="perfFps">fps —</div>
+    <div class="perf-line" id="perfFrames">frames —</div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
