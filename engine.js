@@ -1,9 +1,12 @@
 (function (global) {
   'use strict';
 
-  // Minimal, dependency-free math core for BJ training.
-  // Exposes: weightHiLo, trueCountState, bandFromTC, recommendBasic,
-  // logistic edge model, Kelly sizing helpers, normalizeRank.
+  // BLACKJ Engine
+  // Goals:
+  // - Accurate, configurable counting (multiple systems)
+  // - True count that supports real-world tray estimates (decks remaining override)
+  // - Edge model that is conservative, monotone, and capped (avoids "fake precision")
+  // - Basic strategy core (fixed for 6D H17 DAS, no surrender, split limit 1, split Aces 1 card)
 
   const RULES = {
     decks: 6,
@@ -18,15 +21,9 @@
 
   const MIN_DECK_FRACTION = 0.25; // floors division to keep TC stable late-shoe
 
-  // Hi-Lo weights (balanced, strong practical edge)
-  function weightHiLo(rank) {
-    if (rank === 'A' || rank === 10) return -1;
-    if (rank >= 2 && rank <= 6) return 1;
-    return 0;
-  }
-
+  // --- Rank normalization ---
   function normalizeRank(key) {
-    const k = key.toUpperCase();
+    const k = String(key).toUpperCase();
     if (k === 'A') return 'A';
     if (k === 'T' || k === 'J' || k === 'Q' || k === 'K' || k === '0') return 10;
     const n = Number(k);
@@ -34,6 +31,40 @@
     return null;
   }
 
+  // --- Counting systems ---
+  // Notes:
+  // - We expose fractional RC for Wong Halves.
+  // - For Hi-Opt II, we keep the *main count* only (Ace-neutral).
+  //   (A true "Hi-Opt II + Ace side count" is more accurate but adds complexity.)
+  const COUNT_SYSTEMS = {
+    hilo: {
+      id: 'hilo',
+      name: 'Hi-Lo',
+      balanced: true,
+      weights: { A: -1, 10: -1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 0, 8: 0, 9: 0 }
+    },
+    wong_halves: {
+      id: 'wong_halves',
+      name: 'Wong Halves',
+      balanced: true,
+      weights: { A: -1, 10: -1, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 1, 7: 0.5, 8: 0, 9: -0.5 }
+    },
+    hiopt2: {
+      id: 'hiopt2',
+      name: 'Hi-Opt II (Ace-neutral)',
+      balanced: true,
+      weights: { A: 0, 10: -2, 2: 1, 3: 1, 4: 2, 5: 2, 6: 1, 7: 1, 8: 0, 9: 0 }
+    }
+  };
+
+  function weightFor(rank, systemId) {
+    const sys = COUNT_SYSTEMS[systemId] || COUNT_SYSTEMS.hilo;
+    if (rank === 'A') return sys.weights.A;
+    if (rank === 10) return sys.weights[10];
+    return sys.weights[rank] || 0;
+  }
+
+  // --- Bands (for UI feedback) ---
   function bandFromTC(tc) {
     if (tc <= -2) return 'NEGATIVE';
     if (tc < 1) return 'NEUTRAL';
@@ -41,42 +72,65 @@
     return 'HIGH';
   }
 
-  function trueCountState(rc, cardsDealt, decks = RULES.decks) {
-    const decksSeen = cardsDealt / 52;
-    const remaining = Math.max(MIN_DECK_FRACTION, decks - decksSeen);
+  // --- True Count ---
+  // Supports two modes:
+  // 1) Computed remaining decks from cards dealt (sim mode)
+  // 2) User-estimated decks remaining override (casino mode)
+  function trueCountState(rc, cardsDealt, decks = RULES.decks, decksRemainingOverride) {
+    const decksSeenFromCards = cardsDealt / 52;
+    const computedRemaining = Math.max(MIN_DECK_FRACTION, decks - decksSeenFromCards);
+
+    const remaining = (typeof decksRemainingOverride === 'number' && isFinite(decksRemainingOverride))
+      ? Math.max(MIN_DECK_FRACTION, Math.min(decks, decksRemainingOverride))
+      : computedRemaining;
+
+    const decksSeen = decks - remaining;
     const tc = rc / remaining;
     return { tc, decksSeen, decksRemaining: remaining, band: bandFromTC(tc) };
   }
 
-  // Logistic edge curve to avoid linear overestimation at high TC.
-  // Calibrated for 6D H17 DAS: base off-top ≈ -0.5%, slope ~0.5 per TC around 0,
-  // saturates near +2.5% to +3% at extreme TC with light penetration dampener.
-  function edgeLogistic(tc, decksSeen = 0, decks = RULES.decks) {
-    const base = -0.5;     // off-the-top edge (%)
-    const amp = 6.0;       // total swing span (%)
-    const steep = 0.7;     // logistic steepness
-    const logistic = 1 / (1 + Math.exp(-steep * tc));
-    const raw = base + amp * (logistic - 0.5);
-    const pen = Math.min(1, Math.max(0.4, decksSeen / decks || 0)); // damp early-shoe optimism
-    const edged = raw * pen;
-    if (edged > 5) return 5;
-    if (edged < -3) return -3;
-    return edged;
+  // --- Edge model ---
+  // We intentionally keep this conservative.
+  // It is *not* a simulator, it is a monotone mapping from TC to EV (%),
+  // damped early shoe and capped to avoid overconfidence.
+  //
+  // Defaults tuned around typical 6D H17 DAS for practical betting ramps.
+  // Count systems are normalized so Hi-Lo TC=+1 roughly matches +0.5% swing per TC near 0.
+  const EDGE_PARAMS = {
+    hilo: { base: -0.55, slope: 0.50, capLow: -3.0, capHigh: 3.0 },
+    wong_halves: { base: -0.55, slope: 0.52, capLow: -3.0, capHigh: 3.2 },
+    hiopt2: { base: -0.55, slope: 0.54, capLow: -3.0, capHigh: 3.4 }
+  };
+
+  function clamp(x, lo, hi) {
+    if (x < lo) return lo;
+    if (x > hi) return hi;
+    return x;
   }
 
-  // Legacy linear approximation (kept for reference/back-compat)
-  function edgeEstimate(tc) {
-    return -0.5 + Math.max(0, tc - 1) * 0.5;
+  // Penetration dampener: avoid overstating edge off the top.
+  function penetrationFactor(decksSeen, decks) {
+    const pen = decks > 0 ? (decksSeen / decks) : 0;
+    // start damped, approach 1 as shoe progresses
+    return clamp(0.45 + 0.75 * pen, 0.45, 1.0);
+  }
+
+  function edgeEstimate(tc, decksSeen = 0, decks = RULES.decks, systemId = 'hilo') {
+    const p = EDGE_PARAMS[systemId] || EDGE_PARAMS.hilo;
+    const raw = p.base + p.slope * tc;
+    const edged = raw * penetrationFactor(decksSeen, decks);
+    return clamp(edged, p.capLow, p.capHigh);
   }
 
   // Kelly fraction (default quarter-Kelly) for even-money payout.
   function kellyFraction(edgePct, payout = 1, cap = 0.25) {
     const edge = edgePct / 100;
     if (edge <= 0) return { frac: 0 };
-    const p = 0.5 + edge / (payout + 1); // rough mapping of edge to win prob
+    // very rough mapping: converts EV to a win-prob delta on even-money bets
+    const p = 0.5 + edge / (payout + 1);
     const q = 1 - p;
     const f = (payout * p - q) / payout;
-    const clamped = Math.max(0, Math.min(cap, f));
+    const clamped = clamp(f, 0, cap);
     return { frac: clamped };
   }
 
@@ -182,12 +236,12 @@
   global.BJEngine = {
     rules: RULES,
     minDeckFraction: MIN_DECK_FRACTION,
-    weightHiLo,
+    countSystems: COUNT_SYSTEMS,
+    weightFor,
     normalizeRank,
     bandFromTC,
     trueCountState,
     edgeEstimate,
-    edgeLogistic,
     kellyFraction,
     betUnits,
     recommendBasic,

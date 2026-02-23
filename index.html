@@ -9,9 +9,15 @@
 <body>
   <main id="app" class="app">
     <div class="header">
-      <h1>BLACKJ Trainer</h1>
-      <div class="badge">Ultra-Low-Latency</div>
+      <div class="header-left">
+        <h1>BLACKJ Trainer</h1>
+        <div class="badge">Ultra-Low-Latency</div>
+      </div>
+      <div class="header-actions">
+        <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
+      </div>
     </div>
+
     <div class="rule-strip">
       6D • Dealer hits soft 17 • Blackjack 3:2 • Double after split • One split max • Split Aces one card • Insurance allowed • No surrender
     </div>
@@ -21,15 +27,22 @@
         <div class="label">RC</div>
         <div id="rcVal" class="value">0</div>
       </div>
+
       <div class="panel count-block" data-role="tc">
         <div class="label">TC</div>
         <div class="tc-wrap">
           <div id="tcVal" class="value tc">0</div>
           <div id="bandBadge" class="band">NEUTRAL</div>
-          <div id="edgeVal" class="edge-pill">-0.50%</div>
+          <div id="edgeVal" class="edge-pill">-0.55%</div>
           <button id="edgeToggle" class="icon-btn" type="button" aria-label="Toggle edge/bet display">◎</button>
         </div>
+        <div class="mini-meta">
+          <span class="mini-pill"><span class="mini-key">Count</span> <span id="countSysLabel" class="mono">Hi-Lo</span></span>
+          <span class="mini-pill"><span class="mini-key">Decks</span> <span id="decksLabel" class="mono">6</span></span>
+          <span class="mini-pill"><span class="mini-key">Mode</span> <span id="tcModeLabel" class="mono">SIM</span></span>
+        </div>
       </div>
+
       <div class="panel action-block">
         <div class="label">Action</div>
         <div id="actionVal" class="action-text">—</div>
@@ -62,6 +75,10 @@
       <div class="meta panel">
         <div class="sub-label">Cards Dealt</div>
         <div id="cardsDealtVal" class="mono">0</div>
+      </div>
+      <div class="meta panel">
+        <div class="sub-label">Decks Remaining</div>
+        <div id="decksRemainVal" class="mono">—</div>
       </div>
     </section>
 
@@ -103,7 +120,7 @@
     <section id="hints" class="hints">
       <div class="hint"><span class="mono">2-9, T/J/Q/K, A</span> add card to active target</div>
       <div class="hint"><span class="mono">P</span> player, <span class="mono">D</span> dealer, <span class="mono">B</span> table</div>
-      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">Enter</span> next hand • <span class="mono">X</span> reset • <span class="mono">O</span> overlay • <span class="mono">E</span> edge/bet</div>
+      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">Enter</span> next hand • <span class="mono">X</span> reset • <span class="mono">O</span> overlay • <span class="mono">E</span> edge/bet • <span class="mono">S</span> settings</div>
     </section>
 
     <section id="overlay" class="overlay hidden">
@@ -117,23 +134,21 @@
               <li>P / D / B → switch target</li>
               <li>N noise · M hardcore · O overlay</li>
               <li>Backspace undo · X reset · F perf HUD · E edge/bet</li>
-              <li>Edge/Bet auto: logistic EV + quarter Kelly</li>
+              <li>S settings</li>
             </ul>
           </div>
           <div>
-            <div class="ref-title">Live 6D Rules</div>
+            <div class="ref-title">Count + TC</div>
             <ul class="ref-list">
-              <li>3:2 blackjack · dealer hits soft 17</li>
-              <li>Double after split; one split; split Aces 1 card</li>
-              <li>Insurance allowed at dealer Ace</li>
-              <li>Pairs side bet pays 11:1 on any pair</li>
-              <li>Rummy side bet pays 9:1 on suited/ranked/straight 3-card combo (2 player + dealer up)</li>
+              <li>SIM mode: TC uses cards dealt (training)</li>
+              <li>CASINO mode: TC uses your tray estimate (decks remaining)</li>
+              <li>Counts: Hi-Lo, Wong Halves, Hi-Opt II (Ace-neutral)</li>
             </ul>
           </div>
           <div>
             <div class="ref-title">Practice Drills</div>
             <ul class="ref-list">
-              <li>Single-card: flip & call +1/0/–1 instantly</li>
+              <li>Single-card: flip & call + / 0 / – instantly</li>
               <li>Running count: burn a deck, finish at 0</li>
               <li>Deck est.: eyeball discard tray → decks remaining</li>
               <li>Noise: train with distractions (TV/audio)</li>
@@ -142,12 +157,90 @@
         </div>
       </div>
     </section>
+
+    <!-- Settings Drawer -->
+    <div id="settingsBackdrop" class="backdrop hidden"></div>
+    <aside id="settingsDrawer" class="drawer hidden" aria-hidden="true">
+      <div class="drawer-head">
+        <div class="drawer-title">Settings</div>
+        <button id="settingsCloseBtn" class="icon-btn" type="button" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="form-grid">
+          <label class="field">
+            <span class="field-label">Count system</span>
+            <select id="countSystemSelect" class="field-input">
+              <option value="hilo">Hi-Lo</option>
+              <option value="wong_halves">Wong Halves</option>
+              <option value="hiopt2">Hi-Opt II (Ace-neutral)</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Decks in shoe</span>
+            <select id="decksSelect" class="field-input">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+              <option value="6" selected>6</option>
+              <option value="8">8</option>
+            </select>
+          </label>
+
+          <label class="field field-wide">
+            <span class="field-label">TC mode</span>
+            <div class="seg">
+              <button id="tcModeSimBtn" type="button" class="seg-btn active" data-mode="sim">SIM (cards dealt)</button>
+              <button id="tcModeCasinoBtn" type="button" class="seg-btn" data-mode="casino">CASINO (tray est.)</button>
+            </div>
+          </label>
+
+          <label class="field field-wide" id="decksRemainField">
+            <span class="field-label">Decks remaining (tray estimate)</span>
+            <input id="decksRemainRange" class="range" type="range" min="0.25" max="8" step="0.25" value="3.00" />
+            <div class="range-row">
+              <span class="mono">0.25</span>
+              <span id="decksRemainReadout" class="mono">3.00</span>
+              <span class="mono">8.00</span>
+            </div>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Bankroll (units)</span>
+            <input id="bankrollInput" class="field-input" type="number" min="1" step="1" value="100" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Kelly cap</span>
+            <select id="kellySelect" class="field-input">
+              <option value="0.10">1/10 Kelly</option>
+              <option value="0.125">1/8 Kelly</option>
+              <option value="0.1667">1/6 Kelly</option>
+              <option value="0.20">1/5 Kelly</option>
+              <option value="0.25" selected>1/4 Kelly</option>
+            </select>
+          </label>
+
+          <div class="drawer-note">
+            Edge and bet sizing are conservative estimates, intended for training and discipline, not for guaranteeing outcomes.
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-foot">
+        <button id="settingsApplyBtn" type="button" class="control">Apply</button>
+        <button id="settingsResetBtn" type="button" class="chip-btn">Reset prefs</button>
+      </div>
+    </aside>
   </main>
+
   <div id="toast" class="toast hidden"></div>
   <div id="perfHud" class="perf hidden">
     <div class="perf-line" id="perfFps">fps —</div>
     <div class="perf-line" id="perfFrames">frames —</div>
   </div>
+
   <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>
