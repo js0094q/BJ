@@ -49,6 +49,9 @@
     overlayBtn: document.getElementById('overlayBtn'),
     resetBtn: document.getElementById('resetBtn'),
     edgeToggle: document.getElementById('edgeToggle'),
+    btnPlayer: document.getElementById('btnPlayer'),
+    btnDealer: document.getElementById('btnDealer'),
+    btnTable: document.getElementById('btnTable'),
     perfHud: document.getElementById('perfHud'),
     perfFps: document.getElementById('perfFps'),
     perfFrames: document.getElementById('perfFrames'),
@@ -334,6 +337,7 @@
 
     if (state.target !== rendered.target || force) {
       els.target.textContent = state.target.toUpperCase();
+      highlightTargetButtons();
       rendered.target = state.target;
     }
 
@@ -405,6 +409,17 @@
     }
   }
 
+  function highlightTargetButtons() {
+    const map = {
+      player: els.btnPlayer,
+      dealer: els.btnDealer,
+      table: els.btnTable
+    };
+    Object.keys(map).forEach(key => {
+      map[key].classList.toggle('active', state.target === key);
+    });
+  }
+
   // Input handling
   function handleKey(e) {
     const { key } = e;
@@ -473,6 +488,16 @@
     els.overlayBtn.addEventListener('click', toggleOverlay, { passive: true });
     els.resetBtn.addEventListener('click', reset, { passive: true });
     els.edgeToggle.addEventListener('click', toggleEdge, { passive: true });
+    els.btnPlayer.addEventListener('click', () => setTarget('player'), { passive: true });
+    els.btnDealer.addEventListener('click', () => setTarget('dealer'), { passive: true });
+    els.btnTable.addEventListener('click', () => setTarget('table'), { passive: true });
+
+    document.querySelectorAll('.card-buttons .chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rank = btn.getAttribute('data-rank');
+        applyCard(state.target, rank === 'A' ? 'A' : Number(rank));
+      }, { passive: true });
+    });
     document.addEventListener('keydown', handleKey, false);
   }
 
