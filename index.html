@@ -1,263 +1,283 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BLACKJ Trainer</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>BLACKJ, TC • Edge • RC Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
-  <main id="app" class="app">
-    <div class="header">
-      <div class="header-left">
-        <h1>BLACKJ Trainer</h1>
-        <div class="badge">Ultra-Low-Latency</div>
-      </div>
-      <div class="header-actions">
-        <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
+  <div class="bg"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">♠</div>
+      <div class="brand-text">
+        <div class="brand-title">BLACKJ</div>
+        <div class="brand-sub">True Count, Edge, Running Count</div>
       </div>
     </div>
 
-    <div class="rule-strip">
-      6D • Dealer hits soft 17 • Blackjack 3:2 • Double after split • One split max • Split Aces one card • Insurance allowed • No surrender
+    <div class="top-actions">
+      <button id="btnHelp" class="btn ghost" type="button" aria-label="Help">
+        <span class="icon">?</span>
+        <span class="btn-label">Help</span>
+      </button>
+      <button id="btnSettings" class="btn" type="button" aria-label="Settings">
+        <span class="icon">⚙</span>
+        <span class="btn-label">Settings</span>
+      </button>
     </div>
+  </header>
 
-    <section class="topline">
-      <div class="panel count-block" data-role="rc">
-        <div class="label">RC</div>
-        <div id="rcVal" class="value">0</div>
-      </div>
-
-      <div class="panel count-block" data-role="tc">
-        <div class="label">TC</div>
-        <div class="tc-wrap">
-          <div id="tcVal" class="value tc">0</div>
-          <div id="bandBadge" class="band">NEUTRAL</div>
-          <div id="edgeVal" class="edge-pill">-0.55%</div>
-          <button id="edgeToggle" class="icon-btn" type="button" aria-label="Toggle edge/bet display">◎</button>
-        </div>
-        <div class="mini-meta">
-          <span class="mini-pill"><span class="mini-key">Count</span> <span id="countSysLabel" class="mono">Hi-Lo</span></span>
-          <span class="mini-pill"><span class="mini-key">Decks</span> <span id="decksLabel" class="mono">6</span></span>
-          <span class="mini-pill"><span class="mini-key">Mode</span> <span id="tcModeLabel" class="mono">SIM</span></span>
-          <span class="mini-pill mini-ace hidden" id="aceSidePill"><span class="mini-key">Ace side</span> <span id="aceSideLabel" class="mono">OFF</span></span>
-          <span class="mini-pill mini-ace hidden" id="aceDeltaPill"><span class="mini-key">A seen</span> <span id="acesSeenLabel" class="mono">0</span></span>
-        </div>
-      </div>
-
-      <div class="panel action-block">
-        <div class="label">Action</div>
-        <div id="actionVal" class="action-text">—</div>
-        <div class="bet-line">Bet: <span id="betVal" class="bet-pill">—</span></div>
-      </div>
-    </section>
-
-    <section class="guide panel">
-      <div class="label">Move Guide</div>
-      <div id="guideLine" class="guide-line">Waiting for cards…</div>
-    </section>
-
-    <section id="grid" class="grid">
-      <div class="card-target panel">
-        <div class="sub-label">Target</div>
-        <div id="targetVal" class="pill">TABLE</div>
-      </div>
-      <div class="card-lists panel">
-        <div class="sub-label">Player</div>
-        <div id="playerCards" class="cards"></div>
-      </div>
-      <div class="card-lists panel">
-        <div class="sub-label">Dealer</div>
-        <div id="dealerCards" class="cards"></div>
-      </div>
-      <div class="meta panel">
-        <div class="sub-label">Decks Seen</div>
-        <div id="decksSeenVal" class="mono">0.00</div>
-      </div>
-      <div class="meta panel">
-        <div class="sub-label">Cards Dealt</div>
-        <div id="cardsDealtVal" class="mono">0</div>
-      </div>
-      <div class="meta panel">
-        <div class="sub-label">Decks Remaining</div>
-        <div id="decksRemainVal" class="mono">—</div>
-      </div>
-      <div class="meta panel">
-        <div class="sub-label">Aces Seen (side)</div>
-        <div id="acesSeenVal" class="mono">0</div>
-      </div>
-    </section>
-
-    <section id="controls" class="controls">
-      <button id="noiseBtn" type="button" class="control">Noise (N)</button>
-      <button id="hardcoreBtn" type="button" class="control">Hardcore (M)</button>
-      <button id="perfBtn" type="button" class="control">Perf (F)</button>
-      <button id="overlayBtn" type="button" class="control">Overlay (O)</button>
-      <button id="nextHandBtn" type="button" class="control">Next Hand (Enter)</button>
-      <button id="resetBtn" type="button" class="control">Reset (X)</button>
-    </section>
-
-    <section class="pad panel">
-      <div class="pad-row targets">
-        <span class="label">Target</span>
-        <div class="target-buttons">
-          <button class="chip-btn" data-target="player" id="btnPlayer">Player (P)</button>
-          <button class="chip-btn" data-target="dealer" id="btnDealer">Dealer (D)</button>
-          <button class="chip-btn" data-target="table" id="btnTable">Table (B)</button>
-        </div>
-      </div>
-      <div class="pad-row cards">
-        <span class="label">Add Card</span>
-        <div class="card-buttons">
-          <button class="chip-btn" data-rank="2">2</button>
-          <button class="chip-btn" data-rank="3">3</button>
-          <button class="chip-btn" data-rank="4">4</button>
-          <button class="chip-btn" data-rank="5">5</button>
-          <button class="chip-btn" data-rank="6">6</button>
-          <button class="chip-btn" data-rank="7">7</button>
-          <button class="chip-btn" data-rank="8">8</button>
-          <button class="chip-btn" data-rank="9">9</button>
-          <button class="chip-btn" data-rank="10">T</button>
-          <button class="chip-btn" data-rank="A">A</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="hints" class="hints">
-      <div class="hint"><span class="mono">2-9, T/J/Q/K, A</span> add card to active target</div>
-      <div class="hint"><span class="mono">P</span> player, <span class="mono">D</span> dealer, <span class="mono">B</span> table</div>
-      <div class="hint"><span class="mono">Backspace</span> undo • <span class="mono">Enter</span> next hand • <span class="mono">X</span> reset • <span class="mono">O</span> overlay • <span class="mono">E</span> edge/bet • <span class="mono">S</span> settings</div>
-    </section>
-
-    <section id="overlay" class="overlay hidden">
-      <div class="overlay-content">
-        <h2>Quick Ref</h2>
-        <div class="ref-grid">
+  <main class="wrap">
+    <section class="grid">
+      <div class="card hero">
+        <div class="hero-head">
           <div>
-            <div class="ref-title">Controls</div>
-            <ul class="ref-list">
-              <li>Digits / T J Q K / A → add to target</li>
-              <li>P / D / B → switch target</li>
-              <li>N noise · M hardcore · O overlay</li>
-              <li>Backspace undo · X reset · F perf HUD · E edge/bet</li>
-              <li>S settings</li>
-            </ul>
+            <h1>TC and Edge Trainer</h1>
+            <p class="muted">
+              Count cards, track RC, compute TC, estimate edge, and size bets with conservative guardrails.
+            </p>
           </div>
-          <div>
-            <div class="ref-title">Count + TC</div>
-            <ul class="ref-list">
-              <li>SIM mode: TC uses cards dealt (training)</li>
-              <li>CASINO mode: TC uses your tray estimate (decks remaining)</li>
-              <li>Counts: Hi-Lo, Wong Halves, Hi-Opt II</li>
-              <li>Hi-Opt II: enable Ace side count for betting accuracy</li>
-            </ul>
+
+          <div class="pill-row" id="pillRow">
+            <div class="pill" title="Count system">
+              <span class="pill-k">System</span>
+              <span class="pill-v" id="pillSystem">Hi-Lo</span>
+            </div>
+            <div class="pill" title="Decks in shoe">
+              <span class="pill-k">Decks</span>
+              <span class="pill-v" id="pillDecks">6</span>
+            </div>
+            <div class="pill" title="True Count mode">
+              <span class="pill-k">TC mode</span>
+              <span class="pill-v" id="pillTCMode">SIM</span>
+            </div>
           </div>
-          <div>
-            <div class="ref-title">Practice Drills</div>
-            <ul class="ref-list">
-              <li>Single-card: flip & call + / 0 / – instantly</li>
-              <li>Running count: burn a deck, finish at 0</li>
-              <li>Deck est.: eyeball discard tray → decks remaining</li>
-              <li>Noise: train with distractions (TV/audio)</li>
-            </ul>
+        </div>
+
+        <div class="hero-body">
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-k">Running Count (RC)</div>
+              <div class="stat-v" id="rcValue">0</div>
+              <div class="stat-h muted" id="rcHint">Weights: Hi-Lo</div>
+            </div>
+
+            <div class="stat">
+              <div class="stat-k">True Count (TC)</div>
+              <div class="stat-v" id="tcValue">0.0</div>
+              <div class="stat-h muted" id="tcHint">SIM: by cards dealt</div>
+            </div>
+
+            <div class="stat">
+              <div class="stat-k">Edge (est.)</div>
+              <div class="stat-v" id="edgeValue">0.0%</div>
+              <div class="stat-h muted" id="edgeHint">Conservative, capped</div>
+            </div>
+
+            <div class="stat">
+              <div class="stat-k">Bet Suggestion</div>
+              <div class="stat-v" id="betValue">1u</div>
+              <div class="stat-h muted" id="betHint">Kelly fraction capped</div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <div class="control">
+              <label class="label">Quick Card Input</label>
+              <div class="keypad" id="keypad">
+                <button class="key" data-card="A" type="button">A</button>
+                <button class="key" data-card="2" type="button">2</button>
+                <button class="key" data-card="3" type="button">3</button>
+                <button class="key" data-card="4" type="button">4</button>
+                <button class="key" data-card="5" type="button">5</button>
+                <button class="key" data-card="6" type="button">6</button>
+                <button class="key" data-card="7" type="button">7</button>
+                <button class="key" data-card="8" type="button">8</button>
+                <button class="key" data-card="9" type="button">9</button>
+                <button class="key" data-card="T" type="button">10</button>
+                <button class="key" data-card="J" type="button">J</button>
+                <button class="key" data-card="Q" type="button">Q</button>
+                <button class="key" data-card="K" type="button">K</button>
+              </div>
+              <div class="row">
+                <button id="btnUndo" class="btn ghost" type="button">
+                  <span class="icon">↶</span> Undo
+                </button>
+                <button id="btnClearHand" class="btn ghost" type="button">
+                  <span class="icon">⌫</span> Clear
+                </button>
+                <button id="btnShuffle" class="btn danger" type="button">
+                  <span class="icon">⟳</span> Shuffle
+                </button>
+              </div>
+            </div>
+
+            <div class="control">
+              <label class="label">Session</label>
+
+              <div class="mini-grid">
+                <div class="mini">
+                  <div class="mini-k">Cards Seen</div>
+                  <div class="mini-v" id="cardsSeen">0</div>
+                </div>
+                <div class="mini">
+                  <div class="mini-k">Decks Remaining</div>
+                  <div class="mini-v" id="decksRem">6.0</div>
+                </div>
+                <div class="mini">
+                  <div class="mini-k">Penetration</div>
+                  <div class="mini-v" id="penValue">0%</div>
+                </div>
+              </div>
+
+              <div class="slider-block" id="trayBlock">
+                <div class="row between">
+                  <div class="muted">Discard Tray Estimate (CASINO mode)</div>
+                  <div class="mono" id="trayLabel">6.0 decks remaining</div>
+                </div>
+                <input id="traySlider" type="range" min="0.25" max="8" step="0.25" value="6" />
+                <div class="muted tiny">
+                  Use this in live play to improve TC accuracy. SIM mode uses cards seen instead.
+                </div>
+              </div>
+
+              <div class="row">
+                <button id="btnExport" class="btn" type="button">
+                  <span class="icon">⤓</span> Export
+                </button>
+                <button id="btnImport" class="btn ghost" type="button">
+                  <span class="icon">⤒</span> Import
+                </button>
+              </div>
+
+              <input id="fileInput" type="file" accept="application/json" hidden />
+              <pre class="log" id="log"></pre>
+            </div>
           </div>
         </div>
       </div>
+
+      <aside class="card side">
+        <h2>Notes</h2>
+        <ul class="muted">
+          <li><b>SIM TC</b> uses cards seen and assumes uniform depletion.</li>
+          <li><b>CASINO TC</b> uses your discard tray estimate for decks remaining.</li>
+          <li>Edge is a conservative estimate, monotone with TC, penetration-adjusted, and capped.</li>
+          <li>Bet sizing is fractional Kelly with a hard cap to reduce variance blowups.</li>
+        </ul>
+
+        <div class="divider"></div>
+
+        <h2>Hotkeys</h2>
+        <div class="hotkeys muted">
+          <div><span class="kbd">S</span> Settings</div>
+          <div><span class="kbd">U</span> Undo</div>
+          <div><span class="kbd">C</span> Clear</div>
+          <div><span class="kbd">R</span> Shuffle</div>
+        </div>
+      </aside>
     </section>
-
-    <!-- Settings Drawer -->
-    <div id="settingsBackdrop" class="backdrop hidden"></div>
-    <aside id="settingsDrawer" class="drawer hidden" aria-hidden="true">
-      <div class="drawer-head">
-        <div class="drawer-title">Settings</div>
-        <button id="settingsCloseBtn" class="icon-btn" type="button" aria-label="Close settings">✕</button>
-      </div>
-
-      <div class="drawer-body">
-        <div class="form-grid">
-          <label class="field">
-            <span class="field-label">Count system</span>
-            <select id="countSystemSelect" class="field-input">
-              <option value="hilo">Hi-Lo</option>
-              <option value="wong_halves">Wong Halves</option>
-              <option value="hiopt2">Hi-Opt II (Ace-neutral)</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Decks in shoe</span>
-            <select id="decksSelect" class="field-input">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="4">4</option>
-              <option value="6" selected>6</option>
-              <option value="8">8</option>
-            </select>
-          </label>
-
-          <label class="field field-wide">
-            <span class="field-label">TC mode</span>
-            <div class="seg">
-              <button id="tcModeSimBtn" type="button" class="seg-btn active" data-mode="sim">SIM (cards dealt)</button>
-              <button id="tcModeCasinoBtn" type="button" class="seg-btn" data-mode="casino">CASINO (tray est.)</button>
-            </div>
-          </label>
-
-          <label class="field field-wide" id="aceSideField">
-            <span class="field-label">Ace side count (Hi-Opt II)</span>
-            <div class="seg">
-              <button id="aceSideOnBtn" type="button" class="seg-btn" data-mode="on">On</button>
-              <button id="aceSideOffBtn" type="button" class="seg-btn active" data-mode="off">Off</button>
-            </div>
-            <div class="field-hint">Tracks Aces separately and corrects TC/bet for Hi-Opt II. Aces add automatically when you log them.</div>
-          </label>
-
-          <label class="field field-wide" id="decksRemainField">
-            <span class="field-label">Decks remaining (tray estimate)</span>
-            <input id="decksRemainRange" class="range" type="range" min="0.25" max="8" step="0.25" value="3.00" />
-            <div class="range-row">
-              <span class="mono">0.25</span>
-              <span id="decksRemainReadout" class="mono">3.00</span>
-              <span class="mono">8.00</span>
-            </div>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Bankroll (units)</span>
-            <input id="bankrollInput" class="field-input" type="number" min="1" step="1" value="100" />
-          </label>
-
-          <label class="field">
-            <span class="field-label">Kelly cap</span>
-            <select id="kellySelect" class="field-input">
-              <option value="0.10">1/10 Kelly</option>
-              <option value="0.125">1/8 Kelly</option>
-              <option value="0.1667">1/6 Kelly</option>
-              <option value="0.20">1/5 Kelly</option>
-              <option value="0.25" selected>1/4 Kelly</option>
-            </select>
-          </label>
-
-          <div class="drawer-note">
-            Edge and bet sizing are conservative estimates, intended for training and discipline, not for guaranteeing outcomes.
-          </div>
-        </div>
-      </div>
-
-      <div class="drawer-foot">
-        <button id="settingsApplyBtn" type="button" class="control">Apply</button>
-        <button id="settingsResetBtn" type="button" class="chip-btn">Reset prefs</button>
-      </div>
-    </aside>
   </main>
 
-  <div id="toast" class="toast hidden"></div>
-  <div id="perfHud" class="perf hidden">
-    <div class="perf-line" id="perfFps">fps —</div>
-    <div class="perf-line" id="perfFrames">frames —</div>
-  </div>
+  <!-- Settings Drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
 
-  <script src="engine.js"></script>
-  <script src="app.js"></script>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title">Settings</div>
+        <div class="drawer-sub muted">Counting, TC mode, bankroll, Kelly cap</div>
+      </div>
+      <button id="btnCloseDrawer" class="btn ghost" type="button" aria-label="Close">
+        ✕
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="field">
+        <label class="label" for="systemSelect">Count System</label>
+        <select id="systemSelect" class="input">
+          <option value="HILO">Hi-Lo (balanced)</option>
+          <option value="HALVES">Wong Halves (fractional)</option>
+          <option value="HIOPT2">Hi-Opt II (Ace-neutral)</option>
+        </select>
+        <div class="muted tiny" id="systemHelp">Higher PE systems can improve betting correlation in theory.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="decksSelect">Decks in Shoe</label>
+        <select id="decksSelect" class="input">
+          <option>1</option><option>2</option><option>4</option><option selected>6</option><option>8</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tcModeSelect">True Count Mode</label>
+        <select id="tcModeSelect" class="input">
+          <option value="SIM" selected>SIM (cards seen)</option>
+          <option value="CASINO">CASINO (tray estimate)</option>
+        </select>
+        <div class="muted tiny">CASINO mode is closer to live play. SIM mode is good for drills.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label class="label" for="bankrollInput">Bankroll (units)</label>
+        <input id="bankrollInput" class="input" type="number" min="10" step="10" value="200" />
+        <div class="muted tiny">Used for bet sizing suggestions. Units are your base chip size.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="kellySelect">Kelly Fraction Cap</label>
+        <select id="kellySelect" class="input">
+          <option value="0.10">1/10 Kelly</option>
+          <option value="0.20">1/5 Kelly</option>
+          <option value="0.25" selected>1/4 Kelly</option>
+          <option value="0.33">1/3 Kelly</option>
+        </select>
+        <div class="muted tiny">Lower values reduce volatility and drawdowns.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <button id="btnResetSettings" class="btn danger" type="button">Reset Settings</button>
+        <div class="muted tiny">Resets to defaults. Does not clear current session counts.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Help Modal -->
+  <dialog id="helpModal" class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Help</div>
+      <button id="btnCloseHelp" class="btn ghost" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted">
+        Tap cards to add them to the running count. Use Settings to select your count system and TC mode.
+      </p>
+      <ul class="muted">
+        <li><b>SIM TC</b>: RC divided by decks remaining inferred from cards seen.</li>
+        <li><b>CASINO TC</b>: RC divided by your discard tray estimate.</li>
+        <li><b>Edge</b>: conservative estimate, capped, penetration-adjusted.</li>
+      </ul>
+      <div class="row">
+        <button id="btnCloseHelp2" class="btn" type="button">Got it</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="./engine.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
