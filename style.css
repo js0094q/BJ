@@ -1,416 +1,487 @@
-:root{
-  --bg0:#070A12;
-  --bg1:#0B1021;
-  --card:rgba(255,255,255,0.06);
-  --stroke:rgba(255,255,255,0.10);
-  --text:rgba(255,255,255,0.92);
-  --muted:rgba(255,255,255,0.65);
-  --muted2:rgba(255,255,255,0.50);
-  --accent:#7C5CFF;
-  --accent2:#34D399;
-  --danger:#EF4444;
-  --shadow:0 16px 48px rgba(0,0,0,0.45);
-  --radius:18px;
-  --radius2:26px;
-  --mono:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --sans:"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-}
+(function(global){
+  "use strict";
 
-*{ box-sizing:border-box; }
-html,body{
-  height:100%;
-  margin:0;
-  color:var(--text);
-  font-family:var(--sans);
-  background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(124,92,255,0.25), transparent 55%),
-    radial-gradient(900px 600px at 85% 15%, rgba(52,211,153,0.15), transparent 60%),
-    linear-gradient(180deg, var(--bg0), var(--bg1));
-}
+  const CountSystems = {
+    HILO: {
+      name: "Hi-Lo",
+      weights: {
+        "2": 1, "3": 1, "4": 1, "5": 1, "6": 1,
+        "7": 0, "8": 0, "9": 0,
+        "T": -1, "J": -1, "Q": -1, "K": -1, "A": -1
+      },
+      decimals: 0
+    },
+    HALVES: {
+      name: "Wong Halves",
+      weights: {
+        "2": 0.5, "3": 1, "4": 1, "5": 1.5, "6": 1,
+        "7": 0.5, "8": 0, "9": -0.5,
+        "T": -1, "J": -1, "Q": -1, "K": -1, "A": -1
+      },
+      decimals: 1
+    },
+    HIOPT2: {
+      name: "Hi-Opt II (Ace-neutral)",
+      weights: {
+        "2": 1, "3": 1, "4": 2, "5": 2, "6": 1,
+        "7": 1, "8": 0, "9": 0,
+        "T": -2, "J": -2, "Q": -2, "K": -2, "A": 0
+      },
+      decimals: 0
+    }
+  };
 
-.bg{
-  position:fixed; inset:0;
-  pointer-events:none;
-  background:
-    radial-gradient(1000px 600px at 50% 110%, rgba(245,158,11,0.08), transparent 65%),
-    radial-gradient(800px 500px at 10% 90%, rgba(52,211,153,0.10), transparent 60%);
-  opacity:0.9;
-}
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+  function roundTo(x, decimals){
+    const p = Math.pow(10, decimals);
+    return Math.round(x * p) / p;
+  }
 
-.topbar{
-  position:sticky; top:0;
-  z-index:10;
-  padding:18px 22px;
-  backdrop-filter: blur(18px);
-  background: linear-gradient(180deg, rgba(7,10,18,0.70), rgba(7,10,18,0.20));
-  border-bottom:1px solid rgba(255,255,255,0.06);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-}
+  function normalizeCard(c){
+    if(!c) return null;
+    const s = String(c).trim().toUpperCase();
+    if(s === "10") return "T";
+    if(["A","2","3","4","5","6","7","8","9","T","J","Q","K"].includes(s)) return s;
+    return null;
+  }
 
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.brand-mark{
-  width:38px; height:38px;
-  border-radius:12px;
-  display:grid;
-  place-items:center;
-  background: linear-gradient(135deg, rgba(124,92,255,0.25), rgba(52,211,153,0.20));
-  border:1px solid rgba(255,255,255,0.10);
-  box-shadow:0 10px 30px rgba(0,0,0,0.35);
-  font-weight:900;
-}
-.brand-title{ font-weight:900; letter-spacing:0.2px; }
-.brand-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+  function cardsPerDeck(){ return 52; }
 
-.top-actions{ display:flex; gap:10px; align-items:center; }
+  function decksRemainingFromSeen(decksInShoe, cardsSeen){
+    const total = decksInShoe * cardsPerDeck();
+    const remCards = clamp(total - cardsSeen, 0, total);
+    const remDecks = remCards / cardsPerDeck();
+    return clamp(remDecks, 0.25, decksInShoe);
+  }
 
-.wrap{ padding:22px; max-width:1200px; margin:0 auto; }
+  // Conservative edge approximation, intentionally capped.
+  function estimateEdgePct(tc, penetration){
+    const slope = 0.45; // percent per TC
+    const cap = 3.0;
+    const floor = -2.0;
+    const penAdj = clamp(0.55 + 0.60 * penetration, 0.55, 1.15);
+    const raw = tc * slope * penAdj;
+    return clamp(raw, floor, cap);
+  }
 
-.grid{
-  display:grid;
-  grid-template-columns: 1.35fr 0.65fr;
-  gap:18px;
-}
-@media (max-width:980px){
-  .grid{ grid-template-columns:1fr; }
-  .topbar{ position:relative; }
-}
+  // Conservative fractional Kelly mapping.
+  function suggestBetUnits(edgePct, bankrollUnits, kellyCapFrac){
+    const edge = edgePct / 100;
+    const variance = 1.30;
+    const kelly = edge / variance;
+    if(kelly <= 0) return 1;
 
-.card{
-  background: linear-gradient(180deg, var(--card), rgba(255,255,255,0.035));
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:var(--radius2);
-  box-shadow:var(--shadow);
-}
+    const f = clamp(kelly, 0, kellyCapFrac);
+    const units = Math.max(1, Math.round(f * bankrollUnits));
+    const hardCap = Math.max(1, Math.round(0.10 * bankrollUnits));
+    return clamp(units, 1, hardCap);
+  }
 
-.hero{ padding:18px; overflow:hidden; }
-.side{ padding:18px; }
+  function cardValue(c){
+    if(c === "A") return 11;
+    if(c === "T" || c === "J" || c === "Q" || c === "K") return 10;
+    return Number(c);
+  }
 
-.hero-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:16px;
-}
-.hero h1{
-  margin:2px 0 6px 0;
-  font-size:26px;
-  letter-spacing:-0.2px;
-}
-.muted{ color:var(--muted); }
-.tiny{ font-size:12px; color:var(--muted2); }
+  function handInfo(cards){
+    let total = 0;
+    let aceCount = 0;
+    for(const c of cards){
+      total += cardValue(c);
+      if(c === "A") aceCount += 1;
+    }
+    while(total > 21 && aceCount > 0){
+      total -= 10;
+      aceCount -= 1;
+    }
 
-.pill-row{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-.pill{
-  padding:10px 12px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.10);
-  background:rgba(255,255,255,0.04);
-  display:flex;
-  gap:10px;
-  align-items:center;
-  font-size:12px;
-}
-.pill-k{ color:var(--muted); }
-.pill-v{ font-weight:800; }
+    // soft if at least one ace is still counted as 11
+    // compute by checking if any ace could remain 11 after reductions
+    let raw = 0;
+    let a = 0;
+    for(const c of cards){
+      raw += cardValue(c);
+      if(c === "A") a += 1;
+    }
+    while(raw > 21 && a > 0){
+      raw -= 10;
+      a -= 1;
+    }
+    const soft = a > 0;
 
-.stat-grid{
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap:12px;
-}
-@media (max-width:980px){
-  .stat-grid{ grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width:520px){
-  .stat-grid{ grid-template-columns: 1fr; }
-}
+    const isPair = cards.length === 2 && normalizeCard(cards[0]) === normalizeCard(cards[1]);
+    const pairRank = isPair ? normalizeCard(cards[0]) : null;
+    return { total, soft, isPair, pairRank };
+  }
 
-.stat{
-  background: rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius);
-  padding:12px;
-}
-.stat-k{ font-size:12px; color:var(--muted); }
-.stat-v{
-  font-size:28px;
-  font-weight:900;
-  letter-spacing:-0.4px;
-  margin:6px 0;
-}
-.stat-h{ font-size:12px; }
+  function dealerUpValue(c){
+    if(!c) return null;
+    if(c === "J" || c === "Q" || c === "K") return "T";
+    return c;
+  }
 
-.controls{
-  margin-top:14px;
-  display:grid;
-  grid-template-columns: 1fr 0.9fr;
-  gap:12px;
-}
-@media (max-width:980px){
-  .controls{ grid-template-columns:1fr; }
-}
+  // Basic strategy: 6D, S17, DAS, LS (late surrender)
+  // Actions: H,S,D,P,R
+  function basicStrategy(playerCards, dealerUp, rules){
+    const up = dealerUpValue(dealerUp);
+    if(!up) return { action: null, reason: "Set dealer upcard" };
+    if(playerCards.length < 2) return { action: null, reason: "Add player cards" };
 
-.control{
-  background: rgba(255,255,255,0.03);
-  border:1px solid rgba(255,255,255,0.07);
-  border-radius: var(--radius);
-  padding:12px;
-}
+    const info = handInfo(playerCards);
+    const allowLS = !!rules.lateSurrender;
 
-.label{
-  font-size:12px;
-  color:var(--muted);
-  display:block;
-  margin-bottom:10px;
-}
+    // Pair rules
+    if(info.isPair){
+      const p = info.pairRank;
 
-.keypad{
-  display:grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap:8px;
-}
-@media (max-width:520px){
-  .keypad{ grid-template-columns: repeat(4, 1fr); }
-}
-.key{
-  background: rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.10);
-  color:var(--text);
-  border-radius:14px;
-  padding:12px 10px;
-  font-weight:900;
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border 120ms ease;
-}
-.key:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.07);
-  border-color: rgba(255,255,255,0.14);
-}
-.key:active{ transform: translateY(0px) scale(0.99); }
+      if(p === "A") return { action: "P", reason: "Pair AA" };
+      if(p === "8") return { action: "P", reason: "Pair 88" };
+      if(p === "T") return { action: "S", reason: "Pair TT" };
 
-.row{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  margin-top:10px;
-  flex-wrap:wrap;
-}
-.between{ justify-content:space-between; }
-.mono{ font-family: var(--mono); }
+      if(p === "9"){
+        if(["2","3","4","5","6","8","9"].includes(up)) return { action: "P", reason: "Pair 99" };
+        return { action: "S", reason: "Pair 99" };
+      }
 
-.btn{
-  appearance:none;
-  border:1px solid rgba(255,255,255,0.12);
-  background: linear-gradient(180deg, rgba(124,92,255,0.20), rgba(124,92,255,0.08));
-  color: var(--text);
-  border-radius:14px;
-  padding:10px 12px;
-  font-weight:800;
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border 120ms ease;
-  display:inline-flex;
-  gap:10px;
-  align-items:center;
-}
-.btn:hover{
-  transform: translateY(-1px);
-  border-color: rgba(255,255,255,0.18);
-  background: linear-gradient(180deg, rgba(124,92,255,0.25), rgba(124,92,255,0.10));
-}
-.btn:active{ transform: translateY(0px) scale(0.99); }
+      if(p === "7"){
+        if(["2","3","4","5","6","7"].includes(up)) return { action: "P", reason: "Pair 77" };
+        return { action: "H", reason: "Pair 77" };
+      }
 
-.btn.ghost{
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.10);
-}
-.btn.ghost:hover{ background: rgba(255,255,255,0.06); }
+      if(p === "6"){
+        if(["2","3","4","5","6"].includes(up)) return { action: "P", reason: "Pair 66" };
+        return { action: "H", reason: "Pair 66" };
+      }
 
-.btn.danger{
-  background: linear-gradient(180deg, rgba(239,68,68,0.20), rgba(239,68,68,0.08));
-  border-color: rgba(239,68,68,0.35);
-}
-.btn.danger:hover{
-  background: linear-gradient(180deg, rgba(239,68,68,0.28), rgba(239,68,68,0.12));
-}
+      if(p === "5"){
+        if(["2","3","4","5","6","7","8","9"].includes(up)) return { action: "D", reason: "Pair 55 (play as 10)" };
+        return { action: "H", reason: "Pair 55" };
+      }
 
-.icon{ font-weight:900; opacity:0.9; }
-.btn-label{ font-size:13px; }
+      if(p === "4"){
+        if(!!rules.doubleAfterSplit && ["5","6"].includes(up)) return { action: "P", reason: "Pair 44 (DAS)" };
+        return { action: "H", reason: "Pair 44" };
+      }
 
-.mini-grid{
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:10px;
-}
-@media (max-width:520px){
-  .mini-grid{ grid-template-columns:1fr; }
-}
-.mini{
-  background: rgba(255,255,255,0.03);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;
-  padding:10px;
-}
-.mini-k{ font-size:12px; color:var(--muted); }
-.mini-v{ margin-top:6px; font-size:18px; font-weight:900; }
+      if(p === "3" || p === "2"){
+        if(["2","3","4","5","6","7"].includes(up)) return { action: "P", reason: `Pair ${p}${p}` };
+        return { action: "H", reason: `Pair ${p}${p}` };
+      }
+      // fallthrough
+    }
 
-.slider-block{
-  margin-top:12px;
-  padding:10px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-}
-input[type="range"]{ width:100%; margin-top:10px; }
+    // Soft totals
+    if(info.soft){
+      const t = info.total;
 
-.log{
-  margin-top:10px;
-  padding:10px;
-  background: rgba(0,0,0,0.25);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;
-  color: rgba(255,255,255,0.85);
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.35;
-  min-height: 82px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+      if(t === 13 || t === 14){
+        if(["5","6"].includes(up)) return { action: "D", reason: `Soft ${t}` };
+        return { action: "H", reason: `Soft ${t}` };
+      }
+      if(t === 15 || t === 16){
+        if(["4","5","6"].includes(up)) return { action: "D", reason: `Soft ${t}` };
+        return { action: "H", reason: `Soft ${t}` };
+      }
+      if(t === 17){
+        if(["3","4","5","6"].includes(up)) return { action: "D", reason: "Soft 17" };
+        return { action: "H", reason: "Soft 17" };
+      }
+      if(t === 18){
+        if(["3","4","5","6"].includes(up)) return { action: "D", reason: "Soft 18" };
+        if(["2","7","8"].includes(up)) return { action: "S", reason: "Soft 18" };
+        return { action: "H", reason: "Soft 18" };
+      }
+      if(t >= 19) return { action: "S", reason: `Soft ${t}` };
+      return { action: "H", reason: `Soft ${t}` };
+    }
 
-.side h2{ margin:0 0 10px 0; font-size:16px; }
-.side ul{ margin:0 0 10px 18px; padding:0; }
-.side li{ margin:8px 0; }
+    // Hard totals
+    const t = info.total;
 
-.divider{
-  height:1px;
-  background: rgba(255,255,255,0.08);
-  margin:14px 0;
-}
+    if(allowLS){
+      if(t === 16 && ["9","T","A"].includes(up)) return { action: "R", reason: "LS 16 vs 9/T/A" };
+      if(t === 15 && up === "T") return { action: "R", reason: "LS 15 vs T" };
+    }
 
-.hotkeys{ display:grid; gap:10px; }
-.kbd{
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 3px 7px;
-  border-radius: 8px;
-  border:1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.88);
-  margin-right:8px;
-}
+    if(t <= 8) return { action: "H", reason: `Hard ${t}` };
+    if(t === 9){
+      if(["3","4","5","6"].includes(up)) return { action: "D", reason: "Hard 9" };
+      return { action: "H", reason: "Hard 9" };
+    }
+    if(t === 10){
+      if(["2","3","4","5","6","7","8","9"].includes(up)) return { action: "D", reason: "Hard 10" };
+      return { action: "H", reason: "Hard 10" };
+    }
+    if(t === 11){
+      return { action: "D", reason: "Hard 11" };
+    }
+    if(t === 12){
+      if(["4","5","6"].includes(up)) return { action: "S", reason: "Hard 12" };
+      return { action: "H", reason: "Hard 12" };
+    }
+    if(t >= 13 && t <= 16){
+      if(["2","3","4","5","6"].includes(up)) return { action: "S", reason: `Hard ${t}` };
+      return { action: "H", reason: `Hard ${t}` };
+    }
+    return { action: "S", reason: `Hard ${t}` };
+  }
 
-/* Segmented control + grading */
-.seg{
-  display:flex;
-  border:1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.03);
-  border-radius:14px;
-  overflow:hidden;
-}
-.seg-btn{
-  padding:10px 12px;
-  background:transparent;
-  border:none;
-  color: rgba(255,255,255,0.78);
-  font-weight:900;
-  cursor:pointer;
-}
-.seg-btn.active{
-  background: rgba(124,92,255,0.22);
-  color: rgba(255,255,255,0.95);
-}
-.check{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color: rgba(255,255,255,0.70);
-  font-size: 13px;
-  user-select:none;
-}
-.check input{ transform: translateY(1px); }
+  // Hi-Lo deviations subset, applies only when system=HILO and enabled.
+  // Action override only when TC >= index.
+  const HiLoDeviations = [
+    { key: "HARD:16vT", tcMin: 0, action: "S", label: "16 vs T stand at TC >= 0" },
+    { key: "HARD:15vT", tcMin: 4, action: "S", label: "15 vs T stand at TC >= 4" },
+    { key: "HARD:12v3", tcMin: 2, action: "S", label: "12 vs 3 stand at TC >= 2" },
+    { key: "HARD:12v2", tcMin: 3, action: "S", label: "12 vs 2 stand at TC >= 3" },
+    { key: "HARD:10vT", tcMin: 4, action: "D", label: "10 vs T double at TC >= 4" },
+    { key: "HARD:11vA", tcMin: 1, action: "D", label: "11 vs A double at TC >= 1" },
+    { key: "HARD:9v2",  tcMin: 1, action: "D", label: "9 vs 2 double at TC >= 1" },
+    { key: "HARD:9v7",  tcMin: 3, action: "D", label: "9 vs 7 double at TC >= 3" }
+  ];
 
-.good{ color: rgba(52,211,153,0.92); font-weight: 900; }
-.bad{ color: rgba(239,68,68,0.92); font-weight: 900; }
+  function deviationKey(playerCards, dealerUp){
+    const up = dealerUpValue(dealerUp);
+    if(!up || playerCards.length < 2) return null;
+    const info = handInfo(playerCards);
+    if(info.soft || info.isPair) return null;
+    return `HARD:${info.total}v${up}`;
+  }
 
-/* Drawer + modal */
-.drawer-backdrop{
-  position:fixed;
-  inset:0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(6px);
-  z-index: 40;
-}
-.drawer{
-  position:fixed;
-  top:0; right:0;
-  width:390px;
-  max-width:92vw;
-  height:100%;
-  z-index: 50;
-  transform: translateX(105%);
-  transition: transform 180ms ease;
-  background: linear-gradient(180deg, rgba(11,16,33,0.98), rgba(8,11,22,0.98));
-  border-left:1px solid rgba(255,255,255,0.10);
-  box-shadow: -20px 0 70px rgba(0,0,0,0.55);
-  padding:16px;
-}
-.drawer.open{ transform: translateX(0); }
-.drawer-head{
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-  align-items:flex-start;
-  padding-bottom:12px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
-}
-.drawer-title{ font-weight:900; font-size:18px; }
-.drawer-sub{ font-size:12px; margin-top:4px; }
-.drawer-body{ padding-top:14px; }
-.field{ margin-bottom:14px; }
-.input{
-  width:100%;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: var(--text);
-  outline:none;
-  font-weight:700;
-}
-select.input{ cursor:pointer; }
+  function applyDeviations(base, playerCards, dealerUp, tc, system, enabled){
+    if(!enabled) return { ...base, usedDeviation: false };
+    if(system !== "HILO") return { ...base, usedDeviation: false };
+    const key = deviationKey(playerCards, dealerUp);
+    if(!key) return { ...base, usedDeviation: false };
 
-.modal{
-  border:none;
-  border-radius:18px;
-  padding:0;
-  background: linear-gradient(180deg, rgba(11,16,33,0.98), rgba(8,11,22,0.98));
-  color: var(--text);
-  box-shadow: var(--shadow);
-  width: min(560px, 94vw);
-}
-.modal::backdrop{
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(6px);
-}
-.modal-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:14px 16px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
-}
-.modal-title{ font-weight:900; }
-.modal-body{ padding:14px 16px; }
+    for(const d of HiLoDeviations){
+      if(d.key === key && tc >= d.tcMin){
+        return { action: d.action, reason: `Deviation: ${d.label}`, usedDeviation: true };
+      }
+    }
+    return { ...base, usedDeviation: false };
+  }
+
+  class BJEngine {
+    constructor(opts = {}){
+      this.resetAll();
+
+      this.settings = {
+        system: opts.system || "HILO",
+        decksInShoe: opts.decksInShoe || 6,
+        tcMode: opts.tcMode || "SIM",
+        trayDecksRemaining: opts.trayDecksRemaining || (opts.decksInShoe || 6),
+        bankrollUnits: opts.bankrollUnits || 200,
+        kellyCapFrac: typeof opts.kellyCapFrac === "number" ? opts.kellyCapFrac : 0.25,
+
+        // rules defaults
+        dealerHitsSoft17: false, // S17
+        doubleAfterSplit: true,  // DAS
+        lateSurrender: true,     // LS
+
+        useDeviations: false
+      };
+    }
+
+    resetAll(){
+      this.rc = 0;
+      this.cardsSeen = 0;
+      this.history = [];
+      this.player = [];
+      this.dealer = [];
+    }
+
+    resetCountsOnly(){
+      this.rc = 0;
+      this.cardsSeen = 0;
+      this.history = [];
+    }
+
+    clearHand(){
+      this.player = [];
+      this.dealer = [];
+    }
+
+    newHand(){
+      this.clearHand();
+    }
+
+    setSettings(patch){
+      this.settings = { ...this.settings, ...patch };
+
+      this.settings.decksInShoe = clamp(Number(this.settings.decksInShoe || 6), 1, 8);
+      this.settings.trayDecksRemaining = clamp(
+        Number(this.settings.trayDecksRemaining || this.settings.decksInShoe),
+        0.25,
+        this.settings.decksInShoe
+      );
+      this.settings.bankrollUnits = clamp(Number(this.settings.bankrollUnits || 200), 10, 100000);
+      this.settings.kellyCapFrac = clamp(Number(this.settings.kellyCapFrac || 0.25), 0.05, 0.50);
+
+      if(!CountSystems[this.settings.system]) this.settings.system = "HILO";
+      if(!["SIM","CASINO"].includes(this.settings.tcMode)) this.settings.tcMode = "SIM";
+    }
+
+    getSystem(){
+      return CountSystems[this.settings.system] || CountSystems.HILO;
+    }
+
+    weightFor(card){
+      const sys = this.getSystem();
+      return sys.weights[card] ?? 0;
+    }
+
+    addSeenCard(cardInput){
+      const card = normalizeCard(cardInput);
+      if(!card) return { ok: false, error: "Invalid card" };
+
+      const delta = this.weightFor(card);
+      this.rc += delta;
+      this.cardsSeen += 1;
+      this.history.push({ card, delta });
+
+      return { ok: true, card };
+    }
+
+    addCardToPlayer(cardInput){
+      const res = this.addSeenCard(cardInput);
+      if(!res.ok) return res;
+      this.player.push(res.card);
+      return { ok: true };
+    }
+
+    addCardToDealer(cardInput){
+      const res = this.addSeenCard(cardInput);
+      if(!res.ok) return res;
+      this.dealer.push(res.card);
+      return { ok: true };
+    }
+
+    undo(){
+      const last = this.history.pop();
+      if(!last) return { ok: false, error: "Nothing to undo" };
+
+      this.rc -= last.delta;
+      this.cardsSeen = Math.max(0, this.cardsSeen - 1);
+
+      const pTop = this.player[this.player.length - 1];
+      if(pTop === last.card){
+        this.player.pop();
+        return { ok: true };
+      }
+      const dTop = this.dealer[this.dealer.length - 1];
+      if(dTop === last.card){
+        this.dealer.pop();
+        return { ok: true };
+      }
+      return { ok: true };
+    }
+
+    shuffle(){
+      this.resetCountsOnly();
+      this.clearHand();
+      return { ok: true };
+    }
+
+    decksRemaining(){
+      const decksInShoe = Number(this.settings.decksInShoe || 6);
+      if(this.settings.tcMode === "CASINO"){
+        return clamp(Number(this.settings.trayDecksRemaining || decksInShoe), 0.25, decksInShoe);
+      }
+      return decksRemainingFromSeen(decksInShoe, this.cardsSeen);
+    }
+
+    penetration(){
+      const decksInShoe = Number(this.settings.decksInShoe || 6);
+      const totalCards = decksInShoe * cardsPerDeck();
+      const dealt = clamp(this.cardsSeen, 0, totalCards);
+      return dealt / totalCards;
+    }
+
+    trueCount(){
+      const sys = this.getSystem();
+      const decksRem = this.decksRemaining();
+      const tc = this.rc / decksRem;
+      return roundTo(tc, sys.decimals === 0 ? 1 : 2);
+    }
+
+    edgePct(){
+      const tc = this.trueCount();
+      const pen = this.penetration();
+      return roundTo(estimateEdgePct(tc, pen), 1);
+    }
+
+    betUnits(){
+      const e = this.edgePct();
+      return suggestBetUnits(e, this.settings.bankrollUnits, this.settings.kellyCapFrac);
+    }
+
+    recommendation(){
+      const dealerUp = this.dealer[0] || null;
+      const base = basicStrategy(this.player, dealerUp, this.settings);
+      if(!base.action) return { action: null, reason: base.reason, usedDeviation: false };
+
+      const tc = this.trueCount();
+      const out = applyDeviations(base, this.player, dealerUp, tc, this.settings.system, !!this.settings.useDeviations);
+      return { action: out.action, reason: out.reason || base.reason, usedDeviation: !!out.usedDeviation };
+    }
+
+    snapshot(){
+      const sys = this.getSystem();
+      const decksRem = this.decksRemaining();
+      const dealerUp = this.dealer[0] || null;
+      const pInfo = this.player.length ? handInfo(this.player) : null;
+
+      return {
+        settings: { ...this.settings },
+        systemName: sys.name,
+        rc: roundTo(this.rc, sys.decimals),
+        cardsSeen: this.cardsSeen,
+        decksRemaining: roundTo(decksRem, 2),
+        penetration: roundTo(this.penetration(), 4),
+        tc: this.trueCount(),
+        edgePct: this.edgePct(),
+        betUnits: this.betUnits(),
+        hand: {
+          dealerUp,
+          playerCards: [...this.player],
+          playerInfo: pInfo
+        },
+        rec: this.recommendation()
+      };
+    }
+
+    exportJSON(){
+      return JSON.stringify({
+        v: 3,
+        state: {
+          rc: this.rc,
+          cardsSeen: this.cardsSeen,
+          history: this.history,
+          player: this.player,
+          dealer: this.dealer
+        },
+        settings: this.settings
+      }, null, 2);
+    }
+
+    importJSON(jsonText){
+      let obj;
+      try{ obj = JSON.parse(jsonText); }catch(e){ return { ok: false, error: "Invalid JSON" }; }
+      if(!obj || !obj.state || !obj.settings) return { ok: false, error: "Missing fields" };
+
+      const st = obj.state;
+      this.rc = Number(st.rc || 0);
+      this.cardsSeen = Number(st.cardsSeen || 0);
+      this.history = Array.isArray(st.history) ? st.history : [];
+      this.player = Array.isArray(st.player) ? st.player : [];
+      this.dealer = Array.isArray(st.dealer) ? st.dealer : [];
+
+      this.setSettings(obj.settings);
+      return { ok: true };
+    }
+  }
+
+  global.BJEngine = BJEngine;
+  global.BJCountSystems = CountSystems;
+
+})(window);
