@@ -4,60 +4,33 @@
   const $ = (sel) => document.querySelector(sel);
 
   const els = {
-    rcValue: $("#rcValue"),
-    tcValue: $("#tcValue"),
-    edgeValue: $("#edgeValue"),
-    betValue: $("#betValue"),
-    rcHint: $("#rcHint"),
-    tcHint: $("#tcHint"),
-    edgeHint: $("#edgeHint"),
-    betHint: $("#betHint"),
-    cardsSeen: $("#cardsSeen"),
-    decksRem: $("#decksRem"),
-    penValue: $("#penValue"),
-    trayBlock: $("#trayBlock"),
-    traySlider: $("#traySlider"),
-    trayLabel: $("#trayLabel"),
+    rcValue: $("#rcValue"), tcValue: $("#tcValue"), edgeValue: $("#edgeValue"), betValue: $("#betValue"),
+    rcHint: $("#rcHint"), tcHint: $("#tcHint"), edgeHint: $("#edgeHint"), betHint: $("#betHint"),
+    cardsSeen: $("#cardsSeen"), decksRem: $("#decksRem"), penValue: $("#penValue"),
+    trayBlock: $("#trayBlock"), traySlider: $("#traySlider"), trayLabel: $("#trayLabel"),
     log: $("#log"),
 
-    pillSystem: $("#pillSystem"),
-    pillDecks: $("#pillDecks"),
-    pillTCMode: $("#pillTCMode"),
+    pillSystem: $("#pillSystem"), pillDecks: $("#pillDecks"), pillTCMode: $("#pillTCMode"),
 
-    keypad: $("#keypad"),
-    btnUndo: $("#btnUndo"),
-    btnClearHand: $("#btnClearHand"),
-    btnShuffle: $("#btnShuffle"),
-    btnExport: $("#btnExport"),
-    btnImport: $("#btnImport"),
-    fileInput: $("#fileInput"),
+    keypad: $("#keypad"), btnUndo: $("#btnUndo"), btnClearHand: $("#btnClearHand"), btnShuffle: $("#btnShuffle"),
+    btnExport: $("#btnExport"), btnImport: $("#btnImport"), fileInput: $("#fileInput"),
 
-    btnSettings: $("#btnSettings"),
-    btnHelp: $("#btnHelp"),
-    drawerBackdrop: $("#drawerBackdrop"),
-    drawer: $("#drawer"),
-    btnCloseDrawer: $("#btnCloseDrawer"),
-    systemSelect: $("#systemSelect"),
-    decksSelect: $("#decksSelect"),
-    tcModeSelect: $("#tcModeSelect"),
-    bankrollInput: $("#bankrollInput"),
-    kellySelect: $("#kellySelect"),
-    btnResetSettings: $("#btnResetSettings"),
+    btnSettings: $("#btnSettings"), btnHelp: $("#btnHelp"),
+    drawerBackdrop: $("#drawerBackdrop"), drawer: $("#drawer"), btnCloseDrawer: $("#btnCloseDrawer"),
+    systemSelect: $("#systemSelect"), decksSelect: $("#decksSelect"), tcModeSelect: $("#tcModeSelect"),
+    bankrollInput: $("#bankrollInput"), kellySelect: $("#kellySelect"), btnResetSettings: $("#btnResetSettings"),
 
-    helpModal: $("#helpModal"),
-    btnCloseHelp: $("#btnCloseHelp"),
-    btnCloseHelp2: $("#btnCloseHelp2"),
+    // New rule selectors
+    soft17Select: $("#soft17Select"),
+    dasSelect: $("#dasSelect"),
+    lsSelect: $("#lsSelect"),
 
-    // Decision trainer
-    targetSeg: $("#targetSeg"),
-    devToggle: $("#devToggle"),
-    dealerUp: $("#dealerUp"),
-    playerHand: $("#playerHand"),
-    recAction: $("#recAction"),
-    recExplain: $("#recExplain"),
-    actionResult: $("#actionResult"),
-    btnNewHand: $("#btnNewHand"),
-    btnClearHand2: $("#btnClearHand2")
+    helpModal: $("#helpModal"), btnCloseHelp: $("#btnCloseHelp"), btnCloseHelp2: $("#btnCloseHelp2"),
+
+    targetSeg: $("#targetSeg"), devToggle: $("#devToggle"),
+    dealerUp: $("#dealerUp"), playerHand: $("#playerHand"), recAction: $("#recAction"),
+    recExplain: $("#recExplain"), actionResult: $("#actionResult"),
+    btnNewHand: $("#btnNewHand"), btnClearHand2: $("#btnClearHand2")
   };
 
   const DEFAULTS = {
@@ -67,34 +40,32 @@
     trayDecksRemaining: 6,
     bankrollUnits: 200,
     kellyCapFrac: 0.25,
-    dealerHitsSoft17: false,
-    doubleAfterSplit: true,
-    lateSurrender: true,
+    dealerHitsSoft17: false,   // S17 default
+    doubleAfterSplit: true,    // DAS default
+    lateSurrender: true,       // LS default
     useDeviations: false
   };
 
   const engine = new window.BJEngine(loadSettings());
-  let inputTarget = "PLAYER"; // PLAYER | DEALER | SEEN
+  let inputTarget = "PLAYER";
 
   function log(msg){
     const ts = new Date().toLocaleTimeString();
     els.log.textContent = `[${ts}] ${msg}\n` + (els.log.textContent || "");
   }
-
   function pct(x){ return `${Number(x).toFixed(1)}%`; }
   function fmtDecks(x){ return `${Number(x).toFixed(2)}`; }
   function fmtPen(p){ return `${Math.round(p * 100)}%`; }
 
   function saveSettings(){
-    try{ localStorage.setItem("blackj_settings_v3", JSON.stringify(engine.settings)); }catch(e){}
+    try{ localStorage.setItem("blackj_settings_v4", JSON.stringify(engine.settings)); }catch(e){}
   }
 
   function loadSettings(){
     try{
-      const raw = localStorage.getItem("blackj_settings_v3");
+      const raw = localStorage.getItem("blackj_settings_v4");
       if(!raw) return { ...DEFAULTS };
-      const obj = JSON.parse(raw);
-      return { ...DEFAULTS, ...obj };
+      return { ...DEFAULTS, ...JSON.parse(raw) };
     }catch(e){
       return { ...DEFAULTS };
     }
@@ -107,12 +78,15 @@
     els.tcModeSelect.value = s.tcMode;
     els.bankrollInput.value = String(s.bankrollUnits);
     els.kellySelect.value = String(s.kellyCapFrac);
+    els.devToggle.checked = !!s.useDeviations;
+
+    els.soft17Select.value = s.dealerHitsSoft17 ? "H17" : "S17";
+    els.dasSelect.value = s.doubleAfterSplit ? "YES" : "NO";
+    els.lsSelect.value = s.lateSurrender ? "YES" : "NO";
 
     els.traySlider.max = String(s.decksInShoe);
     els.traySlider.value = String(s.trayDecksRemaining);
     els.trayLabel.textContent = `${Number(s.trayDecksRemaining).toFixed(2)} decks remaining`;
-
-    els.devToggle.checked = !!s.useDeviations;
   }
 
   function applySettings(patch){
@@ -172,7 +146,7 @@
     if(!snap.rec.action){
       els.recExplain.textContent = snap.rec.reason || "Set dealer upcard and player cards.";
     } else {
-      const dev = snap.rec.usedDeviation ? " (deviation)" : "";
+      const dev = snap.rec.usedDeviation ? " (index)" : "";
       els.recExplain.textContent = `${snap.rec.reason}${dev}`;
     }
   }
@@ -187,7 +161,6 @@
     els.drawer.setAttribute("aria-hidden", "true");
     els.drawerBackdrop.hidden = true;
   }
-
   function openHelp(){ if(typeof els.helpModal.showModal === "function") els.helpModal.showModal(); }
   function closeHelp(){ if(typeof els.helpModal.close === "function") els.helpModal.close(); }
 
@@ -204,10 +177,7 @@
     else if(inputTarget === "DEALER") res = engine.addCardToDealer(card);
     else res = engine.addSeenCard(card);
 
-    if(!res.ok){
-      log(`Error: ${res.error}`);
-      return;
-    }
+    if(!res.ok){ log(`Error: ${res.error}`); return; }
     render();
   }
 
@@ -235,14 +205,12 @@
     const json = engine.exportJSON();
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = "blackj_state.json";
     document.body.appendChild(a);
     a.click();
     a.remove();
-
     URL.revokeObjectURL(url);
     log("Exported state to blackj_state.json");
   }
@@ -251,10 +219,7 @@
     const reader = new FileReader();
     reader.onload = () => {
       const res = engine.importJSON(String(reader.result || ""));
-      if(!res.ok){
-        log(`Import failed: ${res.error}`);
-        return;
-      }
+      if(!res.ok){ log(`Import failed: ${res.error}`); return; }
       saveSettings();
       syncSettingsToUI();
       render();
@@ -264,38 +229,13 @@
   }
 
   function wireButtons(){
-    els.btnUndo.addEventListener("click", () => {
-      const res = engine.undo();
-      if(!res.ok){ log(res.error); return; }
-      render();
-    });
-
-    els.btnClearHand.addEventListener("click", () => {
-      engine.clearHand();
-      els.actionResult.textContent = "Hand cleared.";
-      render();
-      log("Cleared hand only");
-    });
-
-    els.btnShuffle.addEventListener("click", () => {
-      engine.shuffle();
-      els.actionResult.textContent = "Shuffled, counts and hand reset.";
-      render();
-      log("Shuffled: counts + hand reset");
-    });
+    els.btnUndo.addEventListener("click", () => { const r = engine.undo(); if(!r.ok) log(r.error); render(); });
+    els.btnClearHand.addEventListener("click", () => { engine.clearHand(); els.actionResult.textContent = "Hand cleared."; render(); });
+    els.btnShuffle.addEventListener("click", () => { engine.shuffle(); els.actionResult.textContent = "Shuffled, counts and hand reset."; render(); });
 
     els.btnExport.addEventListener("click", exportState);
-
-    els.btnImport.addEventListener("click", () => {
-      els.fileInput.value = "";
-      els.fileInput.click();
-    });
-
-    els.fileInput.addEventListener("change", () => {
-      const f = els.fileInput.files && els.fileInput.files[0];
-      if(!f) return;
-      importStateFromFile(f);
-    });
+    els.btnImport.addEventListener("click", () => { els.fileInput.value = ""; els.fileInput.click(); });
+    els.fileInput.addEventListener("change", () => { const f = els.fileInput.files && els.fileInput.files[0]; if(f) importStateFromFile(f); });
 
     els.btnSettings.addEventListener("click", openDrawer);
     els.btnCloseDrawer.addEventListener("click", closeDrawer);
@@ -306,18 +246,20 @@
     els.btnCloseHelp2.addEventListener("click", closeHelp);
 
     els.systemSelect.addEventListener("change", () => applySettings({ system: els.systemSelect.value }));
-
     els.decksSelect.addEventListener("change", () => {
       const decks = Number(els.decksSelect.value);
       const tray = Math.min(Number(engine.settings.trayDecksRemaining), decks);
       applySettings({ decksInShoe: decks, trayDecksRemaining: tray });
     });
-
     els.tcModeSelect.addEventListener("change", () => applySettings({ tcMode: els.tcModeSelect.value }));
-
     els.bankrollInput.addEventListener("change", () => applySettings({ bankrollUnits: Number(els.bankrollInput.value) }));
-
     els.kellySelect.addEventListener("change", () => applySettings({ kellyCapFrac: Number(els.kellySelect.value) }));
+
+    els.soft17Select.addEventListener("change", () => applySettings({ dealerHitsSoft17: els.soft17Select.value === "H17" }));
+    els.dasSelect.addEventListener("change", () => applySettings({ doubleAfterSplit: els.dasSelect.value === "YES" }));
+    els.lsSelect.addEventListener("change", () => applySettings({ lateSurrender: els.lsSelect.value === "YES" }));
+
+    els.devToggle.addEventListener("change", () => applySettings({ useDeviations: !!els.devToggle.checked }));
 
     els.traySlider.addEventListener("input", () => {
       const v = Number(els.traySlider.value);
@@ -327,42 +269,25 @@
       render();
     });
 
-    els.btnResetSettings.addEventListener("click", () => {
-      applySettings({ ...DEFAULTS });
-      log("Settings reset to defaults");
-    });
+    els.btnResetSettings.addEventListener("click", () => applySettings({ ...DEFAULTS }));
 
     els.targetSeg.addEventListener("click", (e) => {
       const b = e.target.closest(".seg-btn");
-      if(!b) return;
-      setInputTarget(b.dataset.target);
+      if(b) setInputTarget(b.dataset.target);
     });
 
-    els.devToggle.addEventListener("change", () => applySettings({ useDeviations: !!els.devToggle.checked }));
-
-    els.btnNewHand.addEventListener("click", () => {
-      engine.newHand();
-      els.actionResult.textContent = "New hand started.";
-      render();
-    });
-
-    els.btnClearHand2.addEventListener("click", () => {
-      engine.clearHand();
-      els.actionResult.textContent = "Hand cleared.";
-      render();
-    });
+    els.btnNewHand.addEventListener("click", () => { engine.newHand(); els.actionResult.textContent = "New hand started."; render(); });
+    els.btnClearHand2.addEventListener("click", () => { engine.clearHand(); els.actionResult.textContent = "Hand cleared."; render(); });
 
     document.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-action]");
-      if(!b) return;
-      gradeAction(b.getAttribute("data-action"));
+      if(b) gradeAction(b.getAttribute("data-action"));
     });
   }
 
   function wireHotkeys(){
     window.addEventListener("keydown", (e) => {
       if(e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA")) return;
-
       const k = e.key.toLowerCase();
       if(k === "s"){
         e.preventDefault();
@@ -370,13 +295,10 @@
         else openDrawer();
       } else if(k === "u"){
         e.preventDefault();
-        engine.undo();
-        render();
+        engine.undo(); render();
       } else if(k === "r"){
         e.preventDefault();
-        engine.shuffle();
-        render();
-        log("Shuffled: counts + hand reset");
+        engine.shuffle(); render();
       }
     });
   }
