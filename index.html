@@ -4,10 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="dark light" />
-  <title>BLACKJ, TC • Edge • RC Trainer</title>
+  <title>BLACKJ, Decisions + TC • Edge • RC</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="./style.css" />
 </head>
 
@@ -19,7 +21,7 @@
       <div class="brand-mark" aria-hidden="true">♠</div>
       <div class="brand-text">
         <div class="brand-title">BLACKJ</div>
-        <div class="brand-sub">True Count, Edge, Running Count</div>
+        <div class="brand-sub">Decision trainer + true count + edge</div>
       </div>
     </div>
 
@@ -40,13 +42,14 @@
       <div class="card hero">
         <div class="hero-head">
           <div>
-            <h1>TC and Edge Trainer</h1>
+            <h1>Blackjack Decision + Count Trainer</h1>
             <p class="muted">
-              Count cards, track RC, compute TC, estimate edge, and size bets with conservative guardrails.
+              Tap cards as they appear. Set dealer upcard and player hand to get a recommended action and grading,
+              while RC, TC, edge, and bet sizing update in real time.
             </p>
           </div>
 
-          <div class="pill-row" id="pillRow">
+          <div class="pill-row">
             <div class="pill" title="Count system">
               <span class="pill-k">System</span>
               <span class="pill-v" id="pillSystem">Hi-Lo</span>
@@ -73,7 +76,7 @@
             <div class="stat">
               <div class="stat-k">True Count (TC)</div>
               <div class="stat-v" id="tcValue">0.0</div>
-              <div class="stat-h muted" id="tcHint">SIM: by cards dealt</div>
+              <div class="stat-h muted" id="tcHint">SIM: by cards seen</div>
             </div>
 
             <div class="stat">
@@ -90,8 +93,9 @@
           </div>
 
           <div class="controls">
+            <!-- Left: keypad -->
             <div class="control">
-              <label class="label">Quick Card Input</label>
+              <label class="label">Card Keypad</label>
               <div class="keypad" id="keypad">
                 <button class="key" data-card="A" type="button">A</button>
                 <button class="key" data-card="2" type="button">2</button>
@@ -107,19 +111,70 @@
                 <button class="key" data-card="Q" type="button">Q</button>
                 <button class="key" data-card="K" type="button">K</button>
               </div>
+
               <div class="row">
                 <button id="btnUndo" class="btn ghost" type="button">
                   <span class="icon">↶</span> Undo
                 </button>
                 <button id="btnClearHand" class="btn ghost" type="button">
-                  <span class="icon">⌫</span> Clear
+                  <span class="icon">⌫</span> Clear Hand
                 </button>
                 <button id="btnShuffle" class="btn danger" type="button">
                   <span class="icon">⟳</span> Shuffle
                 </button>
               </div>
+
+              <div class="divider"></div>
+
+              <label class="label">Decision Trainer</label>
+
+              <div class="row">
+                <div class="seg" id="targetSeg">
+                  <button class="seg-btn active" data-target="PLAYER" type="button">Player</button>
+                  <button class="seg-btn" data-target="DEALER" type="button">Dealer</button>
+                  <button class="seg-btn" data-target="SEEN" type="button">Seen-only</button>
+                </div>
+
+                <label class="check" title="Applies only when System is Hi-Lo">
+                  <input id="devToggle" type="checkbox" />
+                  <span>Use deviations (Hi-Lo only)</span>
+                </label>
+              </div>
+
+              <div class="mini-grid" style="margin-top:10px;">
+                <div class="mini">
+                  <div class="mini-k">Dealer Upcard</div>
+                  <div class="mini-v" id="dealerUp">–</div>
+                </div>
+                <div class="mini">
+                  <div class="mini-k">Player Hand</div>
+                  <div class="mini-v" id="playerHand">–</div>
+                </div>
+                <div class="mini">
+                  <div class="mini-k">Recommendation</div>
+                  <div class="mini-v" id="recAction">–</div>
+                </div>
+              </div>
+
+              <div class="muted tiny" id="recExplain" style="margin-top:8px;">Set dealer upcard and player cards.</div>
+
+              <div class="row" style="margin-top:10px;">
+                <button class="btn ghost" id="btnNewHand" type="button">New Hand</button>
+                <button class="btn ghost" id="btnClearHand2" type="button">Clear Hand</button>
+              </div>
+
+              <div class="row" style="margin-top:10px; flex-wrap:wrap;">
+                <button class="btn" data-action="H" type="button">Hit</button>
+                <button class="btn" data-action="S" type="button">Stand</button>
+                <button class="btn" data-action="D" type="button">Double</button>
+                <button class="btn" data-action="P" type="button">Split</button>
+                <button class="btn ghost" data-action="R" type="button">Surrender</button>
+              </div>
+
+              <div class="muted tiny" id="actionResult" style="margin-top:8px;">Choose an action to be graded.</div>
             </div>
 
+            <!-- Right: session + import/export -->
             <div class="control">
               <label class="label">Session</label>
 
@@ -130,7 +185,7 @@
                 </div>
                 <div class="mini">
                   <div class="mini-k">Decks Remaining</div>
-                  <div class="mini-v" id="decksRem">6.0</div>
+                  <div class="mini-v" id="decksRem">6.00</div>
                 </div>
                 <div class="mini">
                   <div class="mini-k">Penetration</div>
@@ -141,11 +196,11 @@
               <div class="slider-block" id="trayBlock">
                 <div class="row between">
                   <div class="muted">Discard Tray Estimate (CASINO mode)</div>
-                  <div class="mono" id="trayLabel">6.0 decks remaining</div>
+                  <div class="mono" id="trayLabel">6.00 decks remaining</div>
                 </div>
                 <input id="traySlider" type="range" min="0.25" max="8" step="0.25" value="6" />
                 <div class="muted tiny">
-                  Use this in live play to improve TC accuracy. SIM mode uses cards seen instead.
+                  CASINO TC uses your deck-remaining estimate. SIM TC uses cards seen.
                 </div>
               </div>
 
@@ -166,12 +221,22 @@
       </div>
 
       <aside class="card side">
-        <h2>Notes</h2>
+        <h2>Rules (default)</h2>
         <ul class="muted">
-          <li><b>SIM TC</b> uses cards seen and assumes uniform depletion.</li>
-          <li><b>CASINO TC</b> uses your discard tray estimate for decks remaining.</li>
-          <li>Edge is a conservative estimate, monotone with TC, penetration-adjusted, and capped.</li>
-          <li>Bet sizing is fractional Kelly with a hard cap to reduce variance blowups.</li>
+          <li>6-deck shoe</li>
+          <li>S17 (dealer stands on soft 17)</li>
+          <li>DAS (double after split)</li>
+          <li>Late surrender enabled</li>
+        </ul>
+
+        <div class="divider"></div>
+
+        <h2>How to use</h2>
+        <ul class="muted">
+          <li>Set target to <b>Dealer</b>, tap the upcard.</li>
+          <li>Set target to <b>Player</b>, tap two cards.</li>
+          <li>Choose an action to be graded.</li>
+          <li>Set target to <b>Seen-only</b> to count extra table cards without changing hand state.</li>
         </ul>
 
         <div class="divider"></div>
@@ -180,7 +245,6 @@
         <div class="hotkeys muted">
           <div><span class="kbd">S</span> Settings</div>
           <div><span class="kbd">U</span> Undo</div>
-          <div><span class="kbd">C</span> Clear</div>
           <div><span class="kbd">R</span> Shuffle</div>
         </div>
       </aside>
@@ -196,9 +260,7 @@
         <div class="drawer-title">Settings</div>
         <div class="drawer-sub muted">Counting, TC mode, bankroll, Kelly cap</div>
       </div>
-      <button id="btnCloseDrawer" class="btn ghost" type="button" aria-label="Close">
-        ✕
-      </button>
+      <button id="btnCloseDrawer" class="btn ghost" type="button" aria-label="Close">✕</button>
     </div>
 
     <div class="drawer-body">
@@ -209,7 +271,7 @@
           <option value="HALVES">Wong Halves (fractional)</option>
           <option value="HIOPT2">Hi-Opt II (Ace-neutral)</option>
         </select>
-        <div class="muted tiny" id="systemHelp">Higher PE systems can improve betting correlation in theory.</div>
+        <div class="muted tiny">Deviations toggle applies only to Hi-Lo in this build.</div>
       </div>
 
       <div class="field">
@@ -225,7 +287,7 @@
           <option value="SIM" selected>SIM (cards seen)</option>
           <option value="CASINO">CASINO (tray estimate)</option>
         </select>
-        <div class="muted tiny">CASINO mode is closer to live play. SIM mode is good for drills.</div>
+        <div class="muted tiny">CASINO mode is closer to live play.</div>
       </div>
 
       <div class="divider"></div>
@@ -233,7 +295,7 @@
       <div class="field">
         <label class="label" for="bankrollInput">Bankroll (units)</label>
         <input id="bankrollInput" class="input" type="number" min="10" step="10" value="200" />
-        <div class="muted tiny">Used for bet sizing suggestions. Units are your base chip size.</div>
+        <div class="muted tiny">Used for bet sizing suggestions.</div>
       </div>
 
       <div class="field">
@@ -244,14 +306,14 @@
           <option value="0.25" selected>1/4 Kelly</option>
           <option value="0.33">1/3 Kelly</option>
         </select>
-        <div class="muted tiny">Lower values reduce volatility and drawdowns.</div>
+        <div class="muted tiny">Lower values reduce variance.</div>
       </div>
 
       <div class="divider"></div>
 
       <div class="field">
         <button id="btnResetSettings" class="btn danger" type="button">Reset Settings</button>
-        <div class="muted tiny">Resets to defaults. Does not clear current session counts.</div>
+        <div class="muted tiny">Resets settings, does not reset counts. Use Shuffle to reset counts.</div>
       </div>
     </div>
   </aside>
@@ -264,12 +326,12 @@
     </div>
     <div class="modal-body">
       <p class="muted">
-        Tap cards to add them to the running count. Use Settings to select your count system and TC mode.
+        Use the Decision Trainer by setting Dealer and Player targets, then tap cards. Choose an action to be graded.
       </p>
       <ul class="muted">
-        <li><b>SIM TC</b>: RC divided by decks remaining inferred from cards seen.</li>
-        <li><b>CASINO TC</b>: RC divided by your discard tray estimate.</li>
-        <li><b>Edge</b>: conservative estimate, capped, penetration-adjusted.</li>
+        <li>SIM TC: decks remaining inferred from cards seen.</li>
+        <li>CASINO TC: decks remaining from your tray estimate slider.</li>
+        <li>Deviations: small Hi-Lo index subset, only applies when enabled and System is Hi-Lo.</li>
       </ul>
       <div class="row">
         <button id="btnCloseHelp2" class="btn" type="button">Got it</button>
