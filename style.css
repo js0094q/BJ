@@ -1,37 +1,181 @@
-:root { color-scheme: dark; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { margin: 0; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background: #0f121a; color: #ecf0ff; padding-bottom: 280px; }
-.topbar { position: sticky; top: 0; background: #151a25; display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #2c3346; z-index: 10; }
-.layout { padding: 12px; display: grid; gap: 12px; }
-.panel { background: #171d2a; border: 1px solid #2b354b; border-radius: 12px; padding: 12px; }
-.metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-.metrics div { background: #111723; border-radius: 8px; padding: 8px; }
-.metrics span { display:block; font-size: 12px; color:#97a4bf; }
-.metrics strong { font-size: 18px; }
-.row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
-.btn, .chip-btn, #tapPad button { background: #2d7dff; color: #fff; border: 0; border-radius: 10px; padding: 10px 12px; font-weight: 600; }
-.btn.danger { background: #c93c55; }
-.cards { display: flex; gap: 8px; min-height: 34px; flex-wrap: wrap; margin-bottom: 8px; }
-.card-chip { background: #0f1420; border: 1px solid #38435e; border-radius: 999px; min-width: 34px; text-align: center; padding: 7px 10px; }
-.card-buttons { display:grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
-.pills { margin-top: 8px; display:flex; gap:8px; flex-wrap: wrap; }
-.pills span { background: #0f1420; border:1px solid #2e3952; border-radius: 999px; padding: 4px 10px; font-size:12px; }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); }
-.hidden { display: none !important; }
-.perf { position: fixed; top: 60px; right: 10px; background:#000a; border:1px solid #fff3; padding:8px; border-radius:8px; display:flex; gap:8px; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 292px; background: #243148; border: 1px solid #4e638d; border-radius: 999px; padding: 8px 12px; opacity: 0; transition: opacity .15s; }
-.toast.show { opacity: 1; }
-.drawer { position: fixed; right: 0; top: 0; height: 100%; width: min(320px, 95vw); background: #161d2b; border-left: 1px solid #2d3851; padding: 12px; overflow-y: auto; z-index: 30; }
-.backdrop { position: fixed; inset: 0; background: #0007; z-index: 20; }
-.drawer label { display:block; margin: 8px 0; }
-.drawer input, .drawer select { width: 100%; margin-top: 4px; }
+:root {
+  color-scheme: dark;
+  --bg: #0c1018;
+  --panel: #121826;
+  --muted: #8fa1c7;
+  --accent: #2ee59d;
+  --negative: #ff5c7a;
+  --high: #ffd166;
+}
 
-#tapPad { position: fixed; left: 0; right: 0; bottom: 0; background: #121826; border-top: 1px solid #2f3a52; padding: 8px; z-index: 40; }
-.tap-grid { display:grid; grid-template-columns: repeat(3,1fr); gap: 8px; max-width: 560px; margin: 0 auto; }
-#tapPad button { min-height: 42px; background: #27354f; }
-#tapUndo { background: #475066 !important; }
-#tapTarget { background: #1e5ca8 !important; }
-#tapTargetVal { margin-left: 6px; font-weight: 800; }
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
 
-.edge-hidden #edgeVal, .edge-hidden #betVal { filter: blur(4px); }
-@media (min-width: 900px) { .layout { grid-template-columns: 1fr 1fr; } }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  background: var(--bg);
+  color: #ecf0ff;
+  overflow: hidden;
+}
+
+.topbar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid #1e2638;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ghost-btn {
+  background: none;
+  border: 1px solid #2a3654;
+  color: #cfd7ff;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.app {
+  height: calc(100vh - 56px - 220px);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.primary {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.tc-block span,
+.bet-block span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tc-value {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+
+.bet-value {
+  font-size: 28px;
+  margin-top: 4px;
+}
+
+.band {
+  margin-top: 12px;
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.band.neutral { background: #2b3348; }
+.band.positive { background: var(--accent); color: #000; }
+.band.negative { background: var(--negative); }
+.band.high { background: var(--high); color: #000; }
+
+.secondary {
+  display: flex;
+  justify-content: space-around;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 30px;
+}
+
+.hands {
+  margin-bottom: 40px;
+}
+
+.hand h4 {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.cards {
+  display: flex;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.card-chip {
+  background: #1b2438;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #2e3a57;
+}
+
+.action-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.guide {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* TAP PAD */
+
+#tapPad {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border-top: 1px solid #1e2638;
+  padding: 12px;
+}
+
+.tap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+#tapPad button {
+  height: 52px;
+  border-radius: 12px;
+  border: none;
+  background: #1c263c;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  transition: transform 0.05s ease, background 0.15s ease;
+}
+
+#tapPad button:active {
+  transform: scale(0.96);
+  background: #243152;
+}
+
+#tapPad .ten {
+  background: #243152;
+  font-weight: 700;
+}
+
+#tapPad .undo {
+  background: #374055;
+}
+
+#tapPad .target {
+  background: #1e5ca8;
+}
