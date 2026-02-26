@@ -1,272 +1,179 @@
-/* engine.js
-   Counting + TC + conservative edge model + bet sizing
-   No external deps, browser safe.
-*/
+(function () {
+  'use strict';
 
-(function(global){
-  "use strict";
+  const HI_OPT2_ACE_SIDE_MULT = 2;
 
-  const CountSystems = {
-    HILO: {
-      name: "Hi-Lo",
-      weights: {
-        "2": 1, "3": 1, "4": 1, "5": 1, "6": 1,
-        "7": 0, "8": 0, "9": 0,
-        "T": -1, "J": -1, "Q": -1, "K": -1, "A": -1
-      },
-      decimals: 0
+  const rules = {
+    decks: 6,
+    dealerHitsSoft17: true,
+    das: true,
+    splitLimit: 1,
+    splitAcesOneCard: true,
+    surrender: false,
+    insurance: true
+  };
+
+  const countSystems = {
+    hilo: {
+      name: 'Hi-Lo',
+      weights: { A: -1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 0, 8: 0, 9: 0, T: -1, J: -1, Q: -1, K: -1 }
     },
-    HALVES: {
-      name: "Wong Halves",
-      weights: {
-        "2": 0.5, "3": 1, "4": 1, "5": 1.5, "6": 1,
-        "7": 0.5, "8": 0, "9": -0.5,
-        "T": -1, "J": -1, "Q": -1, "K": -1, "A": -1
-      },
-      decimals: 1
+    wong_halves: {
+      name: 'Wong Halves',
+      weights: { A: -1, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 1, 7: 0.5, 8: 0, 9: -0.5, T: -1, J: -1, Q: -1, K: -1 }
     },
-    HIOPT2: {
-      name: "Hi-Opt II (Ace-neutral)",
-      weights: {
-        "2": 1, "3": 1, "4": 2, "5": 2, "6": 1,
-        "7": 1, "8": 0, "9": 0,
-        "T": -2, "J": -2, "Q": -2, "K": -2, "A": 0
-      },
-      decimals: 0
+    hiopt2: {
+      name: 'Hi-Opt II',
+      weights: { A: 0, 2: 1, 3: 1, 4: 2, 5: 2, 6: 1, 7: 1, 8: 0, 9: 0, T: -2, J: -2, Q: -2, K: -2 }
     }
   };
 
-  function clamp(x, lo, hi){
-    return Math.max(lo, Math.min(hi, x));
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
   }
 
-  function roundTo(x, decimals){
-    const p = Math.pow(10, decimals);
-    return Math.round(x * p) / p;
-  }
-
-  function normalizeCard(c){
-    if(!c) return null;
-    const s = String(c).trim().toUpperCase();
-    if(s === "10") return "T";
-    if(["A","2","3","4","5","6","7","8","9","T","J","Q","K"].includes(s)) return s;
+  function normalizeRank(rank) {
+    const raw = String(rank || '').trim().toUpperCase();
+    if (raw === '10') return 'T';
+    if ('A23456789TJQK'.includes(raw) && raw.length === 1) return raw;
     return null;
   }
 
-  function cardsPerDeck(){
-    return 52;
+  function rankValue(rank) {
+    const r = normalizeRank(rank);
+    if (!r) return 0;
+    if (r === 'A') return 11;
+    if (r === 'T' || r === 'J' || r === 'Q' || r === 'K') return 10;
+    return Number(r);
   }
 
-  function decksRemainingFromSeen(decksInShoe, cardsSeen){
-    const total = decksInShoe * cardsPerDeck();
-    const remCards = clamp(total - cardsSeen, 0, total);
-    const remDecks = remCards / cardsPerDeck();
-    return clamp(remDecks, 0.25, decksInShoe);
+  function total(cards) {
+    let sum = 0;
+    let aces = 0;
+    for (let i = 0; i < cards.length; i++) {
+      const r = normalizeRank(cards[i]);
+      if (!r) continue;
+      sum += rankValue(r);
+      if (r === 'A') aces += 1;
+    }
+    while (sum > 21 && aces > 0) {
+      sum -= 10;
+      aces -= 1;
+    }
+    return sum;
   }
 
-  // Conservative edge model:
-  // - monotone with TC
-  // - penetration damp (low pen => weaker confidence)
-  // - capped to avoid fake precision
-  // NOTE: This is an approximation, not a full sim.
-  function estimateEdgePct(tc, penetration){
-    // baseline approx: each +1 TC ~ +0.5% edge (common heuristic for Hi-Lo in shoe games)
-    // Use a conservative slope and cap.
-    const slope = 0.45; // percent per TC
-    const cap = 3.0;    // percent cap
-    const floor = -2.0; // negative cap
-
-    // penetration is 0..1 (fraction dealt)
-    // at shallow pen, reduce magnitude, at deeper pen, allow more
-    const penAdj = clamp(0.55 + 0.60 * penetration, 0.55, 1.15);
-
-    const raw = tc * slope * penAdj;
-    return clamp(raw, floor, cap);
+  function isSoft(cards) {
+    let sum = 0;
+    let aces = 0;
+    for (let i = 0; i < cards.length; i++) {
+      const r = normalizeRank(cards[i]);
+      if (!r) continue;
+      if (r === 'A') {
+        sum += 11;
+        aces += 1;
+      } else {
+        sum += rankValue(r);
+      }
+    }
+    while (sum > 21 && aces > 0) {
+      sum -= 10;
+      aces -= 1;
+    }
+    return aces > 0;
   }
 
-  // Bet suggestion using simplified fractional Kelly:
-  // Kelly fraction f* ≈ edge / variance
-  // For blackjack, typical per-hand variance is ~1.3 (units^2).
-  // Use an intentionally conservative mapping, plus caps.
-  function suggestBetUnits(edgePct, bankrollUnits, kellyCapFrac){
+  function weightFor(rank, system) {
+    const r = normalizeRank(rank);
+    if (!r) return 0;
+    const sys = countSystems[system] || countSystems.hilo;
+    return sys.weights[r] || 0;
+  }
+
+  function trueCountState(rc, cardsDealt, decks, decksRemainingOverride, options) {
+    const system = (options && options.countSystem) || 'hilo';
+    const totalCards = decks * 52;
+    const dealt = clamp(cardsDealt, 0, totalCards);
+    const decksSeen = dealt / 52;
+
+    const decksRemaining = Number.isFinite(decksRemainingOverride)
+      ? clamp(decksRemainingOverride, 0.25, decks)
+      : clamp((totalCards - dealt) / 52, 0.25, decks);
+
+    let aceAdj = 0;
+    if (system === 'hiopt2' && options && options.aceSideEnabled) {
+      const expectedAcesSeen = dealt * (4 / 52);
+      const acesSeen = Number(options.acesSeen || 0);
+      aceAdj = (expectedAcesSeen - acesSeen) * HI_OPT2_ACE_SIDE_MULT;
+    }
+
+    const rcEffective = rc + aceAdj;
+    const tc = rcEffective / decksRemaining;
+
+    let band = 'NEUTRAL';
+    if (tc >= 4) band = 'HIGH';
+    else if (tc >= 1) band = 'POSITIVE';
+    else if (tc <= -1) band = 'NEGATIVE';
+
+    return {
+      decksSeen,
+      decksRemaining,
+      tc,
+      band,
+      aceAdj,
+      rcEffective
+    };
+  }
+
+  function edgeEstimate(tc) {
+    const e = -0.55 + (0.5 * tc);
+    return clamp(e, -2.5, 3.5);
+  }
+
+  function betUnits(edgePct, bankrollUnits, minUnits, maxKelly) {
     const edge = edgePct / 100;
-    const variance = 1.30;
-    const kelly = edge / variance;
-
-    // if negative edge, stick to minimum
-    if(kelly <= 0) return 1;
-
-    // fraction of bankroll to bet, capped by user selection
-    const f = clamp(kelly, 0, kellyCapFrac);
-
-    // Convert fraction of bankroll to units, round, clamp
-    const units = Math.max(1, Math.round(f * bankrollUnits));
-    // Additional sanity cap: do not exceed 10% of bankroll even if settings allow more
-    const hardCap = Math.max(1, Math.round(0.10 * bankrollUnits));
-    return clamp(units, 1, hardCap);
+    if (edge <= 0) return { units: minUnits, frac: 0 };
+    const variance = 1.3;
+    const frac = clamp(edge / variance, 0, maxKelly || 0.25);
+    const units = Math.max(minUnits || 1, Math.round(bankrollUnits * frac));
+    return { units, frac };
   }
 
-  class BJEngine {
-    constructor(opts = {}){
-      this.resetAll();
+  function recommendBasic(player, dealerUp) {
+    const up = normalizeRank(dealerUp);
+    if (!up || player.length < 2) return '—';
 
-      this.settings = {
-        system: opts.system || "HILO",
-        decksInShoe: opts.decksInShoe || 6,
-        tcMode: opts.tcMode || "SIM", // SIM or CASINO
-        trayDecksRemaining: opts.trayDecksRemaining || (opts.decksInShoe || 6),
-        bankrollUnits: opts.bankrollUnits || 200,
-        kellyCapFrac: typeof opts.kellyCapFrac === "number" ? opts.kellyCapFrac : 0.25
-      };
+    const t = total(player);
+    const soft = isSoft(player);
+
+    if (!soft && t >= 17) return 'S';
+    if (!soft && t <= 8) return 'H';
+    if (!soft && t >= 13 && t <= 16) {
+      return ['2', '3', '4', '5', '6'].includes(up) ? 'S' : 'H';
     }
-
-    resetAll(){
-      this.rc = 0;
-      this.cardsSeen = 0;
-      this.history = []; // stack of {card, delta}
+    if (!soft && t === 12) {
+      return ['4', '5', '6'].includes(up) ? 'S' : 'H';
     }
+    if (!soft && t === 11) return 'D';
+    if (!soft && t === 10) return ['T', 'J', 'Q', 'K', 'A'].includes(up) ? 'H' : 'D';
+    if (!soft && t === 9) return ['3', '4', '5', '6'].includes(up) ? 'D' : 'H';
 
-    resetCountsOnly(){
-      this.rc = 0;
-      this.cardsSeen = 0;
-      this.history = [];
-    }
-
-    setSettings(patch){
-      this.settings = { ...this.settings, ...patch };
-      // keep tray value within range
-      this.settings.trayDecksRemaining = clamp(
-        Number(this.settings.trayDecksRemaining || this.settings.decksInShoe),
-        0.25,
-        Number(this.settings.decksInShoe || 6)
-      );
-      this.settings.decksInShoe = clamp(Number(this.settings.decksInShoe || 6), 1, 8);
-      this.settings.bankrollUnits = clamp(Number(this.settings.bankrollUnits || 200), 10, 100000);
-      this.settings.kellyCapFrac = clamp(Number(this.settings.kellyCapFrac || 0.25), 0.05, 0.50);
-
-      if(!CountSystems[this.settings.system]) this.settings.system = "HILO";
-      if(!["SIM","CASINO"].includes(this.settings.tcMode)) this.settings.tcMode = "SIM";
-    }
-
-    getSystem(){
-      return CountSystems[this.settings.system] || CountSystems.HILO;
-    }
-
-    weightFor(card){
-      const sys = this.getSystem();
-      return sys.weights[card] ?? 0;
-    }
-
-    addCard(cardInput){
-      const card = normalizeCard(cardInput);
-      if(!card) return { ok:false, error:"Invalid card" };
-
-      const delta = this.weightFor(card);
-      this.rc = this.rc + delta;
-      this.cardsSeen += 1;
-      this.history.push({ card, delta });
-      return { ok:true };
-    }
-
-    undo(){
-      const last = this.history.pop();
-      if(!last) return { ok:false, error:"Nothing to undo" };
-      this.rc = this.rc - last.delta;
-      this.cardsSeen = Math.max(0, this.cardsSeen - 1);
-      return { ok:true };
-    }
-
-    clearHand(){
-      // For this trainer we treat "clear" as no-op, since we do not track separate hands.
-      // UI uses it to clear temporary input, but cards are added instantly.
-      return { ok:true };
-    }
-
-    shuffle(){
-      this.resetCountsOnly();
-      return { ok:true };
-    }
-
-    decksRemaining(){
-      const decksInShoe = Number(this.settings.decksInShoe || 6);
-      if(this.settings.tcMode === "CASINO"){
-        return clamp(Number(this.settings.trayDecksRemaining || decksInShoe), 0.25, decksInShoe);
-      }
-      return decksRemainingFromSeen(decksInShoe, this.cardsSeen);
-    }
-
-    penetration(){
-      const decksInShoe = Number(this.settings.decksInShoe || 6);
-      const totalCards = decksInShoe * cardsPerDeck();
-      const dealt = clamp(this.cardsSeen, 0, totalCards);
-      return dealt / totalCards; // 0..1
-    }
-
-    trueCount(){
-      const sys = this.getSystem();
-      const decksRem = this.decksRemaining();
-      const tc = this.rc / decksRem;
-      return roundTo(tc, sys.decimals === 0 ? 1 : 2); // show more precision if fractional system
-    }
-
-    edgePct(){
-      const tc = this.trueCount();
-      const pen = this.penetration();
-      return roundTo(estimateEdgePct(tc, pen), 1);
-    }
-
-    betUnits(){
-      const edgePct = this.edgePct();
-      return suggestBetUnits(edgePct, this.settings.bankrollUnits, this.settings.kellyCapFrac);
-    }
-
-    snapshot(){
-      const sys = this.getSystem();
-      const decksRem = this.decksRemaining();
-      return {
-        settings: { ...this.settings },
-        systemName: sys.name,
-        rc: roundTo(this.rc, sys.decimals),
-        cardsSeen: this.cardsSeen,
-        decksRemaining: roundTo(decksRem, 2),
-        penetration: roundTo(this.penetration(), 4),
-        tc: this.trueCount(),
-        edgePct: this.edgePct(),
-        betUnits: this.betUnits()
-      };
-    }
-
-    exportJSON(){
-      return JSON.stringify({
-        v: 2,
-        state: {
-          rc: this.rc,
-          cardsSeen: this.cardsSeen,
-          history: this.history
-        },
-        settings: this.settings
-      }, null, 2);
-    }
-
-    importJSON(jsonText){
-      let obj;
-      try{
-        obj = JSON.parse(jsonText);
-      }catch(e){
-        return { ok:false, error:"Invalid JSON" };
-      }
-      if(!obj || !obj.state || !obj.settings) return { ok:false, error:"Missing fields" };
-      const st = obj.state;
-
-      this.rc = Number(st.rc || 0);
-      this.cardsSeen = Number(st.cardsSeen || 0);
-      this.history = Array.isArray(st.history) ? st.history : [];
-      this.setSettings(obj.settings);
-      return { ok:true };
-    }
+    if (soft && t >= 19) return 'S';
+    if (soft && t === 18) return ['9', 'T', 'J', 'Q', 'K', 'A'].includes(up) ? 'H' : 'S';
+    return 'H';
   }
 
-  global.BJEngine = BJEngine;
-  global.BJCountSystems = CountSystems;
-
-})(window);
+  window.BJEngine = {
+    rules,
+    countSystems,
+    normalizeRank,
+    weightFor,
+    trueCountState,
+    edgeEstimate,
+    betUnits,
+    total,
+    isSoft,
+    recommendBasic,
+    HI_OPT2_ACE_SIDE_MULT
+  };
+})();
