@@ -109,8 +109,26 @@
   }
 
   function render(force) {
-    els.rcVal.textContent = state.countSystem === 'wong_halves' ? state.rc.toFixed(1) : String(Math.round(state.rc));
+    els.rcVal.textContent =
+        state.countSystem === 'wong_halves'
+            ? state.rc.toFixed(1)
+            : String(Math.round(state.rc));
+
+    // ---- TRUE COUNT ----
     els.tcVal.textContent = state.tc.toFixed(2);
+
+    // 🔥 ADD THIS BLOCK RIGHT HERE
+    els.tcVal.classList.remove('tc-positive', 'tc-negative', 'tc-high');
+
+    if (state.band === 'POSITIVE') {
+        els.tcVal.classList.add('tc-positive');
+    } else if (state.band === 'NEGATIVE') {
+        els.tcVal.classList.add('tc-negative');
+    } else if (state.band === 'HIGH') {
+        els.tcVal.classList.add('tc-high');
+    }
+
+    // ---- CONTINUE EXISTING CODE ----
     els.edgeVal.textContent = `${state.edge.toFixed(2)}%`;
     els.betVal.textContent = `${state.betUnits}u`;
     els.bandBadge.textContent = state.band;
@@ -128,6 +146,7 @@
     els.acesSeenLabel.textContent = String(state.acesSeen);
     document.body.classList.toggle('edge-hidden', !state.showEdge);
     els.overlay.classList.toggle('hidden', !state.overlay);
+}
 
     if (force || rendered.playerLen !== state.player.length) {
       paintCards(els.playerCards, state.player); rendered.playerLen = state.player.length;
