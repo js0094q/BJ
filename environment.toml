@@ -3,4 +3,66 @@ version = 1
 name = "BJ"
 
 [setup]
-script = "Develop a web app tool for blackjack players to count cards, adhering to mybookie.ag live blackjack rules: using 6 decks, hitting on soft 16, and allowing split aces to receive only one card. The tool should update the deck count in real-time and provide practice hits that simulate these rules. The user interface will be keyboard-driven, with outputs displayed in real-time to improve player skills. Ensure the app supports multiple output formats, including text, tables, and simulations. Carefully test to confirm rule accuracy and smooth user experience. The files inside this project are the latest iteration and works exceptionally well. However, improvements to the speed and live usability are necessaryDevelop a web app tool for blackjack players to count cards, adhering to mybookie.ag live blackjack rules: using 6 decks, hitting on soft 16, and allowing split aces to receive only one card. The tool should update the deck count in real-time and provide practice hits that simulate these rules. The user interface will be keyboard-driven, with outputs displayed in real-time to improve player skills. Ensure the app supports multiple output formats, including text, tables, and simulations. Carefully test to confirm rule accuracy and smooth user experience. The files inside this project are the latest iteration and works exceptionally well. However, improvements to the speed and live usability are necessary"
+script = """
+Build and refine a high-performance, mobile-first web app for accurately card counting live blackjack sessions on mybookie.ag, and package it with an iOS wrapper for frictionless mobile use.
+
+Core use case:
+- The user is watching/playing a live blackjack table on mybookie.ag and needs to input seen cards in real time.
+- The app must update RC, TC, decks remaining, edge estimate, and recommended bet sizing instantly, with minimal latency and no UI jank.
+- The app must also provide a recommended player action (Hit/Stand/Double/Split) based on the player hand and dealer upcard, using the game rules below.
+
+Rules and assumptions (MyBookie Live target):
+- 6 decks shoe
+- Dealer hits soft 17 (H17)
+- Double allowed on any first two cards (as implemented in this project)
+- Double after split (DAS)
+- Split aces receive one card only
+- No surrender (unless explicitly added later)
+- Counting must support: Hi-Lo (default), optional Wong Halves, optional Hi-Opt II with optional ace side count
+
+UI/UX requirements:
+- Addictive, minimal, and clean visual hierarchy: TC and recommendation should be visually dominant.
+- Dedicated input lanes: Player, Dealer, Table (other seen/burn cards). The active lane is selectable and clearly indicated.
+- Primary input method is a phone-style keypad:
+  - 'T' for tens (covers 10/J/Q/K)
+  - Layout matches a numeric keypad/phone pad for fast muscle memory
+  - Dedicated tap targets for iOS, plus keyboard shortcuts
+  - Debounce/tap-throttle for accidental double entries (target ~45ms)
+  - Undo must be immediate and correct (reverts RC/TC and removes the last card from the correct lane)
+- Settings drawer must work reliably:
+  - Count system select
+  - TC mode: SIM (from cards dealt) vs CASINO (manual decks remaining estimate)
+  - Bankroll units and max Kelly cap
+  - Hi-Opt II ace side toggle (only visible when relevant)
+
+Computation requirements:
+- Real-time RC/TC updates with stable late-shoe behavior (floor remaining decks to a minimum fraction).
+- Recommendation engine:
+  - Must include pair detection + split logic
+  - Must include soft totals A2–A9
+  - Must include DAS-aware doubles
+  - Provide consistent output: HIT / STAND / DOUBLE / SPLIT
+  - Optional later: deviation mode that overlays TC-based index plays behind a toggle
+
+iOS wrapper requirements:
+- Provide an iOS wrapper so the tool is usable like a native app on iPhone (and optionally iPad).
+- Preferred approach: SwiftUI + WKWebView wrapper pointing to the hosted Vercel URL, with offline fallback to bundled static assets if feasible.
+- Ensure full-screen safe-area layout, no pinch-zoom, and proper handling of keyboard focus.
+- Preserve fast tap input: disable unwanted selection/scroll bounce, ensure buttons remain responsive.
+- Add a simple native shell with:
+  - App icon + launch screen
+  - A single “Reload” control (optional)
+  - Optional haptics on tap/undo/target to reinforce muscle memory
+- Document build/run steps in README_DEPLOY.md (Xcode project creation, bundle identifiers, and deployment notes).
+
+Engineering constraints:
+- Keep the web app static-host friendly (Vercel), no backend required.
+- Prioritize performance: avoid excess DOM churn, prefer incremental updates, and keep event handlers lightweight.
+- Maintain code clarity: single source of truth for rules, defensive DOM bindings, no duplicated render logic.
+
+Deliverables:
+- Update engine.js and app.js to implement accurate recommendations, counting logic, and robust input handling.
+- Update index.html/style.css to match the minimal, premium UI layout and ensure all bound IDs exist.
+- Add an iOS wrapper (SwiftUI + WKWebView) with clear setup instructions and assets placeholders.
+- Provide copy-paste-ready code blocks and a short checklist for verifying correctness in a live session workflow.
+"""
