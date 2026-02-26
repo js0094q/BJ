@@ -32,12 +32,12 @@
     return Math.max(lo, Math.min(hi, v));
   }
 
-  function normalizeRank(rank) {
-    const raw = String(rank || '').trim().toUpperCase();
-    if (raw === '10') return 'T';
-    if ('A23456789TJQK'.includes(raw) && raw.length === 1) return raw;
-    return null;
-  }
+ function normalizeRank(rank) {
+  const raw = String(rank || '').trim().toUpperCase();
+  if (raw === '10' || raw === '0') return 'T';   // add '0' support
+  if ('A23456789TJQK'.includes(raw) && raw.length === 1) return raw;
+  return null;
+}
 
   function rankValue(rank) {
     const r = normalizeRank(rank);
