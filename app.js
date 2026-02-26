@@ -108,11 +108,37 @@
     if (els.tapTargetVal) els.tapTargetVal.textContent = state.target === 'dealer' ? 'Dealer' : 'Player';
   }
 
-  function render(force) {
+ function render(force) {
+
     els.rcVal.textContent =
         state.countSystem === 'wong_halves'
             ? state.rc.toFixed(1)
             : String(Math.round(state.rc));
+
+    // ---- TRUE COUNT ----
+    els.tcVal.textContent = state.tc.toFixed(2);
+
+    // 👇 INSERT RIGHT HERE
+    els.tcVal.classList.remove('tc-positive','tc-negative','tc-high');
+
+    if (state.band === 'POSITIVE') {
+        els.tcVal.classList.add('tc-positive');
+    } else if (state.band === 'NEGATIVE') {
+        els.tcVal.classList.add('tc-negative');
+    } else if (state.band === 'HIGH') {
+        els.tcVal.classList.add('tc-high');
+    }
+
+    // ---- CONTINUE ----
+    els.edgeVal.textContent = `${state.edge.toFixed(2)}%`;
+    els.betVal.textContent = `${state.betUnits}u`;
+    els.bandBadge.textContent = state.band;
+    els.cardsDealtVal.textContent = String(state.cardsDealt);
+    els.decksSeenVal.textContent = state.decksSeen.toFixed(2);
+    els.decksRemainVal.textContent = state.decksRemaining.toFixed(2);
+    els.acesSeenVal.textContent = String(state.acesSeen);
+    els.targetVal.textContent = state.target.toUpperCase();
+}
 
     // ---- TRUE COUNT ----
     els.tcVal.textContent = state.tc.toFixed(2);
