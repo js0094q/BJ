@@ -179,3 +179,7 @@ body {
 #tapPad .target {
   background: #1e5ca8;
 }
+
+.tc-positive { color: var(--accent); }
+.tc-negative { color: var(--negative); }
+.tc-high { color: var(--high); }
