@@ -1,103 +1,166 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>BLACKJ · MyBookie Live</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLACKJ — MyBookie Live</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">BLACKJ</div>
+    <div class="top-actions">
+      <button id="nextHandBtn" class="btn">Next Hand</button>
+      <button id="resetBtn" class="btn danger">Reset Shoe</button>
+      <button id="settingsBtn" class="btn ghost">Settings</button>
+    </div>
+  </header>
 
-<header class="topbar">
-  <div class="brand">BLACKJ</div>
-  <button id="settingsBtn" class="ghost-btn">Settings</button>
-</header>
+  <main class="app">
+    <!-- PRIMARY METRICS -->
+    <section class="primary">
+      <div class="metric">
+        <div class="label">True Count</div>
+        <div id="tcVal" class="tc-value">0.00</div>
+        <div class="mini">
+          <span class="label-inline">RC</span> <span id="rcVal">0</span>
+          <span class="dot">•</span>
+          <span class="label-inline">Cards</span> <span id="cardsDealtVal">0</span>
+          <span class="dot">•</span>
+          <span class="label-inline">Decks Rem</span> <span id="decksRemainVal">6.00</span>
+        </div>
+      </div>
 
-<main class="app">
+      <div class="metric right">
+        <div class="label">Recommended Bet</div>
+        <div id="betVal" class="bet-value">1u</div>
+        <div class="mini">
+          <span class="label-inline">Edge</span> <span id="edgeVal">-0.55%</span>
+        </div>
+      </div>
 
-  <!-- PRIMARY STRIP -->
-  <section class="primary">
-    <div class="tc-block">
-      <div class="label">True Count</div>
-      <div id="tcVal" class="tc-value">0.00</div>
+      <div class="band-wrap">
+        <div id="bandBadge" class="band band-neutral">NEUTRAL</div>
+      </div>
+    </section>
+
+    <!-- HAND ENTRY (VISIBLE / SIMPLE) -->
+    <section class="hands">
+      <div class="hand">
+        <h4>Player</h4>
+        <div id="playerCards" class="cards"></div>
+      </div>
+
+      <div class="hand">
+        <h4>Dealer</h4>
+        <div id="dealerCards" class="cards"></div>
+      </div>
+
+      <div class="hand">
+        <h4>Table</h4>
+        <div id="tableCards" class="cards"></div>
+      </div>
+    </section>
+
+    <!-- DOMINANT RECOMMENDATION -->
+    <section class="recommendation">
+      <div class="rec-label">RECOMMENDED MOVE</div>
+      <div id="actionVal" class="rec-value">—</div>
+      <div id="guideLine" class="rec-sub">Enter Player + Dealer upcard to get guidance.</div>
+      <div class="rec-hint">
+        Target: <span id="targetVal" class="target-pill">TABLE</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- SETTINGS -->
+  <div id="settingsBackdrop" class="backdrop hidden"></div>
+  <aside id="settingsDrawer" class="drawer hidden" role="dialog" aria-modal="true">
+    <div class="drawer-head">
+      <h3>Settings</h3>
+      <button id="settingsCloseBtn" class="btn ghost">Close</button>
     </div>
 
-    <div class="bet-block">
-      <div class="label">Recommended Bet</div>
-      <div id="betVal" class="bet-value">1u</div>
+    <label>
+      Count System
+      <select id="countSystemSelect">
+        <option value="hilo">Hi-Lo</option>
+        <option value="wong_halves">Wong Halves</option>
+        <option value="hiopt2">Hi-Opt II</option>
+      </select>
+    </label>
+
+    <div class="segmented">
+      <button id="tcModeSimBtn" class="seg active" type="button">Auto TC</button>
+      <button id="tcModeCasinoBtn" class="seg" type="button">Manual TC</button>
     </div>
 
-    <div id="bandBadge" class="band">NEUTRAL</div>
-  </section>
-
-  <!-- SECONDARY -->
-  <section class="secondary">
-    <div>RC <strong id="rcVal">0</strong></div>
-    <div>Edge <strong id="edgeVal">0.00%</strong></div>
-    <div>Decks <strong id="decksRemainVal">6.00</strong></div>
-    <div>Cards <strong id="cardsDealtVal">0</strong></div>
-  </section>
-
-  <!-- HANDS -->
-  <section class="hands">
-    <div class="hand">
-      <h4>Player</h4>
-      <div id="playerCards" class="cards"></div>
+    <div id="decksRemainField" class="hidden">
+      <label class="range-label">
+        Decks Remaining: <span id="decksRemainReadout">3.00</span>
+      </label>
+      <input id="decksRemainRange" type="range" min="0.25" max="6" step="0.25" value="3" />
     </div>
 
-    <div class="hand">
-      <h4>Dealer</h4>
-      <div id="dealerCards" class="cards"></div>
+    <label>
+      Bankroll Units
+      <input id="bankrollInput" type="number" min="10" value="100" />
+    </label>
+
+    <label>
+      Kelly Cap
+      <select id="kellySelect">
+        <option value="0.1">10%</option>
+        <option value="0.2">20%</option>
+        <option value="0.25" selected>25%</option>
+        <option value="0.5">50%</option>
+      </select>
+    </label>
+
+    <div id="aceSideField" class="hidden">
+      <label>Ace Side Count (Hi-Opt II only)</label>
+      <div class="segmented">
+        <button id="aceSideOnBtn" class="seg" type="button">On</button>
+        <button id="aceSideOffBtn" class="seg active" type="button">Off</button>
+      </div>
     </div>
 
-    <div class="hand">
-      <h4>Table</h4>
-      <div id="tableCards" class="cards"></div>
+    <div class="drawer-actions">
+      <button id="settingsResetBtn" class="btn ghost" type="button">Reset</button>
+      <button id="settingsApplyBtn" class="btn" type="button">Apply</button>
     </div>
-  </section>
+  </aside>
 
-  <!-- DOMINANT RECOMMENDATION -->
-  <section class="recommendation">
-    <div class="rec-label">RECOMMENDED MOVE</div>
-    <div id="actionVal" class="rec-value">—</div>
-    <div id="guideLine" class="rec-sub">Waiting for cards…</div>
-  </section>
+  <!-- TAP PAD -->
+  <nav id="tapPad" aria-label="Card input keypad">
+    <div class="tap-grid">
+      <button class="pad" data-rank="K">K</button>
+      <button class="pad" data-rank="Q">Q</button>
+      <button class="pad" data-rank="J">J</button>
 
-</main>
+      <button class="pad" data-rank="A">A</button>
+      <button class="pad" data-rank="2">2</button>
+      <button class="pad" data-rank="3">3</button>
 
-<!-- SETTINGS -->
-<div id="settingsBackdrop" class="backdrop hidden"></div>
-<div id="settingsDrawer" class="drawer hidden">
-  <h3>Settings</h3>
-  <button id="settingsCloseBtn" class="ghost-btn">Close</button>
-</div>
+      <button class="pad" data-rank="4">4</button>
+      <button class="pad" data-rank="5">5</button>
+      <button class="pad" data-rank="6">6</button>
 
-<!-- TAP PAD -->
-<nav id="tapPad">
-  <div class="tap-grid">
-    <button data-rank="K">K</button>
-    <button data-rank="Q">Q</button>
-    <button data-rank="J">J</button>
+      <button class="pad" data-rank="7">7</button>
+      <button class="pad" data-rank="8">8</button>
+      <button class="pad" data-rank="9">9</button>
 
-    <button data-rank="A">A</button>
-    <button data-rank="2">2</button>
-    <button data-rank="3">3</button>
+      <button id="tapUndo" class="pad special">Undo</button>
+      <button class="pad ten" data-rank="T">T</button>
+      <button id="tapTarget" class="pad target" type="button">
+        Target: <span id="tapTargetVal">TABLE</span>
+      </button>
+    </div>
+  </nav>
 
-    <button data-rank="4">4</button>
-    <button data-rank="5">5</button>
-    <button data-rank="6">6</button>
+  <div id="toast" class="toast" aria-live="polite"></div>
 
-    <button data-rank="7">7</button>
-    <button data-rank="8">8</button>
-    <button data-rank="9">9</button>
-
-    <button id="tapUndo" class="undo">Undo</button>
-    <button data-rank="T" class="ten">T</button>
-    <button id="tapTarget" class="target">Target</button>
-  </div>
-</nav>
-
-<script src="./engine.js"></script>
-<script src="./app.js"></script>
+  <script src="./engine.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
