@@ -383,16 +383,50 @@ body{
 .hidden{ display: none !important; }
 
 @media (max-width: 860px){
-  .app{ padding-bottom: calc(460px + env(safe-area-inset-bottom)); }
+  body{ overflow: hidden; }
+  .topbar{ height: 56px; padding: 0 10px; }
+  .top-actions{ gap: 6px; }
+  .btn{ height: 34px; padding: 0 10px; }
+  .app{
+    height: calc(100dvh - 56px - 320px - env(safe-area-inset-bottom));
+    overflow: hidden;
+    padding: 10px 10px 10px;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+  }
   .primary{ grid-template-columns: 1fr 1fr; }
   .band-wrap{ grid-column: 1 / -1; justify-content: flex-start; }
-  .hands{ grid-template-columns: 1fr; }
-  .tc-value{ font-size: 50px; }
+  .primary{ padding: 10px; gap: 8px; }
+  .tc-value{ font-size: 42px; margin-top: 2px; }
+  .bet-value{ font-size: 28px; margin-top: 8px; }
+  .mini{ margin-top: 6px; font-size: 11px; gap: 6px; }
+  .band{ padding: 6px 10px; font-size: 11px; }
+  .hands{
+    margin-top: 0;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 8px;
+  }
+  .hand{ padding: 8px; border-radius: 12px; }
+  .hand h4{ margin: 0 0 6px; font-size: 11px; }
+  .cards{ min-height: 26px; gap: 6px; }
+  .card-chip{ padding: 4px 8px; font-size: 12px; }
   .recommendation{
     position: static;
-    margin-top: 12px;
+    margin-top: 0;
+    border-radius: 14px;
+    padding: 10px;
   }
-  .rec-value{ font-size: clamp(34px, 11vw, 56px); }
-  #tapPad{ padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .pad{ height: 52px; }
+  .rec-label{ font-size: 10px; }
+  .rec-value{ margin-top: 2px; font-size: clamp(28px, 9vw, 40px); }
+  .rec-sub{ margin-top: 4px; font-size: 12px; }
+  .rec-hint{ margin-top: 6px; gap: 8px; font-size: 12px; }
+  .target-pill{ padding: 3px 8px; font-size: 11px; }
+  .mini-btn{ height: 26px; font-size: 11px; }
+  #tapPad{
+    padding: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .tap-grid{ gap: 8px; }
+  .pad{ height: 46px; font-size: 16px; border-radius: 12px; }
 }
