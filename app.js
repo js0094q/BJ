@@ -15,6 +15,7 @@
     tc: 0,
     band: 'NEUTRAL',
     acesSeen: 0,
+    shoeCards: [],
     edge: -0.55,
     betUnits: 1,
 
@@ -87,6 +88,20 @@
       maxKelly: state.maxKelly,
       aceSideEnabled: state.aceSideEnabled
     };
+  }
+
+  function recomputeShoeStats() {
+    let rc = 0;
+    let acesSeen = 0;
+
+    for (const rank of state.shoeCards) {
+      rc += Engine.weightFor(rank, state.countSystem);
+      if (rank === 'A') acesSeen += 1;
+    }
+
+    state.rc = rc;
+    state.cardsDealt = state.shoeCards.length;
+    state.acesSeen = acesSeen;
   }
 
   function persistPrefs() {
@@ -178,10 +193,9 @@
     const upTxt = (up === 'A') ? 'A' : String(up);
 
     const handDesc = `${soft ? 'Soft' : 'Hard'} ${tv} vs ${upTxt}`;
-    return {
-      act,
-      sub: `${handDesc} · 6D H17 DAS · ${act === 'DOUBLE' ? 'Double if allowed, else Hit' : ''}`.trim()
-    };
+    const detail = (act === 'DOUBLE') ? 'Double if allowed, else Hit' : '';
+    const sub = [handDesc, '6D H17 DAS', detail].filter(Boolean).join(' · ');
+    return { act, sub };
   }
 
   function render(force) {
@@ -224,16 +238,14 @@
   }
 
   function applyCard(target, rank) {
-    logPush({ type: 'ADD_CARD', target, rank });
-
-    state.cardsDealt += 1;
-    state.rc += Engine.weightFor(rank, state.countSystem);
-    if (rank === 'A') state.acesSeen += 1;
-
     if (target === 'player') state.player.push(rank);
     else if (target === 'dealer') state.dealer.push(rank);
     else state.table.push(rank);
 
+    state.shoeCards.push(rank);
+    logPush({ type: 'ADD_CARD', target, rank });
+
+    recomputeShoeStats();
     computeDerived();
     render(true);
   }
@@ -267,9 +279,8 @@
   function resetShoe() {
     logPush({ type: 'RESET_SHOE' });
 
-    state.rc = 0;
-    state.cardsDealt = 0;
-    state.acesSeen = 0;
+    state.shoeCards.length = 0;
+    recomputeShoeStats();
 
     state.player.length = 0;
     state.dealer.length = 0;
@@ -287,14 +298,12 @@
     if (!evt) return;
 
     if (evt.type === 'ADD_CARD') {
-      state.cardsDealt -= 1;
-      state.rc -= Engine.weightFor(evt.rank, state.countSystem);
-      if (evt.rank === 'A') state.acesSeen -= 1;
-
       if (evt.target === 'player') state.player.pop();
       else if (evt.target === 'dealer') state.dealer.pop();
       else state.table.pop();
 
+      state.shoeCards.pop();
+      recomputeShoeStats();
       computeDerived();
       render(true);
       return;
@@ -385,6 +394,7 @@
     if (state.countSystem !== 'hiopt2') state.aceSideEnabled = false;
 
     persistPrefs();
+    recomputeShoeStats();
     computeDerived();
     render(true);
     toast('Settings applied');
@@ -401,6 +411,7 @@
     state.aceSideEnabled = false;
 
     persistPrefs();
+    recomputeShoeStats();
     computeDerived();
     render(true);
     hydrateSettingsUI();
