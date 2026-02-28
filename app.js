@@ -45,7 +45,7 @@
     // hands
     'playerCards','dealerCards','tableCards',
     // recommendation
-    'actionVal','guideLine','targetVal',
+    'actionVal','guideLine','targetVal','cycleTargetBtn',
     // top actions
     'nextHandBtn','resetBtn','settingsBtn',
     // settings
@@ -258,6 +258,14 @@
     toast(`Target → ${next.toUpperCase()}`);
   }
 
+  function isTypingContext() {
+    const ae = document.activeElement;
+    if (!ae) return false;
+    const tag = (ae.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!ae.isContentEditable;
+  }
+
   function nextHand() {
     logPush({
       type: 'NEXT_HAND',
@@ -423,6 +431,7 @@
     safeEl('nextHandBtn').addEventListener('click', nextHand);
     safeEl('resetBtn').addEventListener('click', resetShoe);
     safeEl('settingsBtn').addEventListener('click', openSettings);
+    safeEl('cycleTargetBtn').addEventListener('click', cycleTarget);
 
     // Settings close
     safeEl('settingsCloseBtn').addEventListener('click', closeSettings);
@@ -469,6 +478,11 @@
       const k = e.key;
       if (k === 'Backspace') { e.preventDefault(); undo(); return; }
       if (k === 'Enter') { e.preventDefault(); nextHand(); return; }
+      if (!isTypingContext() && (k === 'c' || k === 'C')) {
+        e.preventDefault();
+        cycleTarget();
+        return;
+      }
 
       const rank = Engine.normalizeRank(k);
       if (!rank) return;
