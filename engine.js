@@ -271,9 +271,9 @@
 
     // DAS-aware doubles (hard totals)
     if (totalVal === 11) {
-      // H17: 11 vs A is typically HIT, vs 2-10 DOUBLE
+      // H17: 11 vs A should also be doubled; S17 keeps HIT vs A.
       if (!canDouble) return 'HIT';
-      if (d === 11 && RULES.dealerHitsSoft17) return 'HIT';
+      if (d === 11) return RULES.dealerHitsSoft17 ? 'DOUBLE' : 'HIT';
       return 'DOUBLE';
     }
 
