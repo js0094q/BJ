@@ -214,15 +214,26 @@ body{
   margin-top: 10px;
   color: rgba(231,237,247,.85);
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .target-pill{
   display:inline-block;
-  margin-left: 6px;
   padding: 4px 10px;
   border-radius: 999px;
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.10);
   font-weight: 800;
+}
+.mini-btn{
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 /* Settings drawer */
