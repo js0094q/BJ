@@ -381,8 +381,16 @@ body{
 .hidden{ display: none !important; }
 
 @media (max-width: 860px){
+  .app{ padding-bottom: 300px; }
   .primary{ grid-template-columns: 1fr 1fr; }
   .band-wrap{ grid-column: 1 / -1; justify-content: flex-start; }
   .hands{ grid-template-columns: 1fr; }
   .tc-value{ font-size: 50px; }
+  .recommendation{
+    position: sticky;
+    bottom: 190px;
+    z-index: 25;
+    margin-top: 12px;
+  }
+  .rec-value{ font-size: clamp(34px, 11vw, 56px); }
 }
