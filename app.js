@@ -377,19 +377,23 @@
       state.aceSideEnabled = false;
     }
 
-    // toggle buttons
-    if (safeEl('aceSideOnBtn') && safeEl('aceSideOffBtn')) {
-      safeEl('aceSideOnBtn').classList.toggle('active', !!state.aceSideEnabled);
-      safeEl('aceSideOffBtn').classList.toggle('active', !state.aceSideEnabled);
-    }
+   safeEl('aceSideOnBtn').addEventListener('click', () => {
+  // Ace side is Hi-Opt II only, so make Hi-Opt II the authoritative selection.
+  if (safeEl('countSystemSelect')) {
+    safeEl('countSystemSelect').value = 'hiopt2';
   }
+  state.aceSideEnabled = true;
+  hydrateSettingsUI();
+});
 
   function applySettings() {
     logPush({ type: 'APPLY_PREFS' });
 
-    state.countSystem = safeEl('countSystemSelect').value || 'hilo';
-    state.tcMode = safeEl('tcModeCasinoBtn').classList.contains('active') ? 'casino' : 'sim';
-
+    // If Ace Side is ON in the settings UI, force Hi-Opt II at commit time.
+    if (safeEl('aceSideOnBtn') && safeEl('aceSideOnBtn').classList.contains('active')) {
+    state.countSystem = 'hiopt2';
+    safeEl('countSystemSelect').value = 'hiopt2';
+}
     const dr = Number(safeEl('decksRemainRange').value || 3);
     state.decksRemainingEst = Math.max(0.25, Math.min(state.decks, dr));
 
@@ -456,11 +460,18 @@
     });
 
     safeEl('countSystemSelect').addEventListener('change', () => {
-      // show/hide ace side field live
-      const v = safeEl('countSystemSelect').value;
-      if (v === 'hiopt2') safeEl('aceSideField').classList.remove('hidden');
-      else safeEl('aceSideField').classList.add('hidden');
-    });
+  const v = safeEl('countSystemSelect').value;
+
+  if (v === 'hiopt2') {
+    safeEl('aceSideField').classList.remove('hidden');
+  } else {
+    safeEl('aceSideField').classList.add('hidden');
+    // Enforce: ace side only valid for Hi-Opt II
+    state.aceSideEnabled = false;
+  }
+
+  hydrateSettingsUI();
+});
 
     safeEl('aceSideOnBtn').addEventListener('click', () => {
       if (safeEl('countSystemSelect').value === 'hiopt2') {
