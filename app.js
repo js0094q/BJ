@@ -534,4 +534,4 @@
   render(true);
   bind();
   toast('Ready');
-})();
+)();
