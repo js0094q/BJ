@@ -529,8 +529,7 @@
     }, { passive: false });
   }
 
-  // init
-  loadPrefs();
+ loadPrefs();
   computeDerived();
   render(true);
   bind();
