@@ -90,6 +90,17 @@
     };
   }
 
+  function canonicalRank(input) {
+    const r = Engine.normalizeRank(input);
+    if (r === null || r === undefined) return null;
+    if (r === 'A') return 'A';
+    if (r === 'T' || r === 10) return 'T';
+    const n = Number(r);
+    if (n >= 2 && n <= 9) return String(n);
+    if (typeof r === 'string' && '23456789'.includes(r)) return r;
+    return null;
+  }
+
   function recomputeShoeStats() {
     let rc = 0;
     let acesSeen = 0;
@@ -238,12 +249,15 @@
   }
 
   function applyCard(target, rank) {
-    if (target === 'player') state.player.push(rank);
-    else if (target === 'dealer') state.dealer.push(rank);
-    else state.table.push(rank);
+    const card = canonicalRank(rank);
+    if (!card) return;
 
-    state.shoeCards.push(rank);
-    logPush({ type: 'ADD_CARD', target, rank });
+    if (target === 'player') state.player.push(card);
+    else if (target === 'dealer') state.dealer.push(card);
+    else state.table.push(card);
+
+    state.shoeCards.push(card);
+    logPush({ type: 'ADD_CARD', target, rank: card });
 
     recomputeShoeStats();
     computeDerived();
@@ -377,23 +391,19 @@
       state.aceSideEnabled = false;
     }
 
-   safeEl('aceSideOnBtn').addEventListener('click', () => {
-  // Ace side is Hi-Opt II only, so make Hi-Opt II the authoritative selection.
-  if (safeEl('countSystemSelect')) {
-    safeEl('countSystemSelect').value = 'hiopt2';
+    // toggle buttons
+    if (safeEl('aceSideOnBtn') && safeEl('aceSideOffBtn')) {
+      safeEl('aceSideOnBtn').classList.toggle('active', !!state.aceSideEnabled);
+      safeEl('aceSideOffBtn').classList.toggle('active', !state.aceSideEnabled);
+    }
   }
-  state.aceSideEnabled = true;
-  hydrateSettingsUI();
-});
 
   function applySettings() {
     logPush({ type: 'APPLY_PREFS' });
 
-    // If Ace Side is ON in the settings UI, force Hi-Opt II at commit time.
-    if (safeEl('aceSideOnBtn') && safeEl('aceSideOnBtn').classList.contains('active')) {
-    state.countSystem = 'hiopt2';
-    safeEl('countSystemSelect').value = 'hiopt2';
-}
+    state.countSystem = safeEl('countSystemSelect').value || 'hilo';
+    state.tcMode = safeEl('tcModeCasinoBtn').classList.contains('active') ? 'casino' : 'sim';
+
     const dr = Number(safeEl('decksRemainRange').value || 3);
     state.decksRemainingEst = Math.max(0.25, Math.min(state.decks, dr));
 
@@ -460,18 +470,11 @@
     });
 
     safeEl('countSystemSelect').addEventListener('change', () => {
-  const v = safeEl('countSystemSelect').value;
-
-  if (v === 'hiopt2') {
-    safeEl('aceSideField').classList.remove('hidden');
-  } else {
-    safeEl('aceSideField').classList.add('hidden');
-    // Enforce: ace side only valid for Hi-Opt II
-    state.aceSideEnabled = false;
-  }
-
-  hydrateSettingsUI();
-});
+      // show/hide ace side field live
+      const v = safeEl('countSystemSelect').value;
+      if (v === 'hiopt2') safeEl('aceSideField').classList.remove('hidden');
+      else safeEl('aceSideField').classList.add('hidden');
+    });
 
     safeEl('aceSideOnBtn').addEventListener('click', () => {
       if (safeEl('countSystemSelect').value === 'hiopt2') {
@@ -495,7 +498,7 @@
         return;
       }
 
-      const rank = Engine.normalizeRank(k);
+      const rank = canonicalRank(k);
       if (!rank) return;
 
       applyCard(state.target, rank);
@@ -512,7 +515,7 @@
       if (now - lastTapAt < TAP_DEBOUNCE_MS) return;
       lastTapAt = now;
 
-      const rank = Engine.normalizeRank(btn.dataset.rank);
+      const rank = canonicalRank(btn.dataset.rank);
       if (!rank) return;
 
       applyCard(state.target, rank);
@@ -528,9 +531,11 @@
       cycleTarget();
     }, { passive: false });
   }
- loadPrefs();
+
+  // init
+  loadPrefs();
   computeDerived();
   render(true);
   bind();
   toast('Ready');
-)();
+})();
