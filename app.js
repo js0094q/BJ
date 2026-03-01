@@ -528,7 +528,6 @@
       cycleTarget();
     }, { passive: false });
   }
-
  loadPrefs();
   computeDerived();
   render(true);
